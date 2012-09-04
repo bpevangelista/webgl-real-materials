@@ -323,6 +323,11 @@ function _waitForContent(functionPtr)
 
 function _initialize()
 {
+	// Remove loading message
+	var loadingDiv = document.getElementById("div-loading");			 
+	if (loadingDiv)
+		loadingDiv.parentNode.removeChild(loadingDiv);
+	
 	initializeContent();
 	
 	// Must set gPreviousTime before main loop starts
