@@ -1,3 +1,4 @@
+- Generate another JSON file with bounding information about meshes
 - Add better constructor for vec3 and mat4 (e.g. vec3(3, 2, 1))
 - Add equals method to vec3 and mat4
 - Handle issue with invertex Y coordinate
