@@ -23,7 +23,7 @@ function initializeGL(canvas)
 	}
 	
 	if (gl) {
-		//gl = WebGLDebugUtils.makeDebugContext(gl);
+		gl = WebGLDebugUtils.makeDebugContext(gl);
 		gl.viewportWidth = canvas.width;
 		gl.viewportHeight = canvas.height;
 	}
@@ -40,13 +40,11 @@ function compileShader(shaderSource, shaderType)
 	
 	if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == false)
 	{
-		gl.deleteShader(shader);
-		shader = null;
-
 		console.log("Shader source:\n" + shaderSource);
 		console.error("Error compiling shader:\n" + gl.getShaderInfoLog(shader));
 		
-		// TODO log error!
+		gl.deleteShader(shader);
+		shader = null;
 	}
 		
 	return shader;
@@ -62,12 +60,10 @@ function linkShader(vertexShader, fragmentShader)
 	
 	if (gl.getProgramParameter(program, gl.LINK_STATUS) == false)
 	{
+		console.error("Error linking shader programs: " + vertexShader + " and " + fragmentShader);
+
 		gl.deleteProgram(program);
 		program = null;
-
-		console.error("Error linking shader programs: " + vertexShader + " and " + fragmentShader);
-	
-		// TODO Log error!
 	}
 	
 	return program;
