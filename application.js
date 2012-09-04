@@ -8,11 +8,12 @@ window.mat4 = efw.mat4;
 
 var gVS_Phong = 
 "uniform mat4 gMatW;"
-+"uniform mat3 gMatWI;"
++"uniform mat3 gMatWIT;"
 +"uniform mat4 gMatWVP;"
 +"attribute vec3 aPosition;"
 +"attribute vec3 aNormal;"
 +"attribute vec2 aUv0;"
++""
 +"varying vec3 oWorldPosition;"
 +"varying vec3 oWorldNormalVec;"
 +"varying vec2 oUv0;"
@@ -21,7 +22,7 @@ var gVS_Phong =
 +"{"
 +"	vec4 position = vec4(aPosition, 1.0);\n"
 +"	oWorldPosition = (position * gMatW).xyz;\n"
-+"	oWorldNormalVec = gMatWI * aNormal;\n"
++"	oWorldNormalVec = aNormal * gMatWIT;\n"
 +"	oUv0 = aUv0;\n"
 +"	gl_Position = position * gMatWVP;\n"
 +"}"
@@ -31,6 +32,7 @@ var gFS_Phong =
 "precision mediump float;"
 +"uniform vec3 gWorldEyePosition;"
 +"uniform vec3 gWorldLight0Position;"
++""
 +"varying vec3 oWorldPosition;"
 +"varying vec3 oWorldNormalVec;"
 +"varying vec2 oUv0;"
@@ -50,14 +52,17 @@ var gFS_Phong =
 +""
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor + lightColor * lightAttnCoeff * specularIntensity;"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor;"
-+"	lightAttnCoeff = max(1.5*lightAttnCoeff + pow(specularIntensity, 8.0), 0.1);"
+//+"	lightAttnCoeff = max(lightAttnCoeff + lightAttnCoeff*pow(specularIntensity, 8.0), 0.05);"
+//
 +"	gl_FragColor = vec4(lightAttnCoeff, lightAttnCoeff, lightAttnCoeff, 1);"
+//+"	worldNormalVec = worldNormalVec * 0.5 + vec3(0.5);"
+//+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
 +"}"
 +"";
 
 // Buffers
 var gShaderProgram;
-var gUniformMatW, gUniformMatWI, gUniformMatWVP;
+var gUniformMatW, gUniformMatWIT, gUniformMatWVP;
 var gUniformEyePos, gUniformLight0Pos;
 var gAttr0, gAttr1, gAttr2;
 
@@ -69,16 +74,19 @@ var gMeshesGL = [];
 
 // Camera and Light
 //var gLightPosition = [1000, -10000, 500];
-var gLightPosition = [0, 1000.0, 0];
+var gLightPosition = [0.0, -800.0, 0.0];
 var gCamera = {};
-gCamera.eyePosition = [-500.0, -800.0, 0.0];
-gCamera.lookAtPosition = vec3.add(gCamera.eyePosition, [1.0, 0.8, 0.0]);
-gCamera.upVector = [0.0, 1.0, 0.0];
+gCamera.eyePos = [-500.0, -800.0, 0.0];
+gCamera.lookAtVec = vec3.normalize([1.0, 0.0, 0.0]);
+gCamera.upVec = [0.0, 1.0, 0.0];
 
 // Events
-var gIsMousePressed = [false, false, false];
-var gMouseLastPosition = [-1, -1];
-var gMousePositionDelta = [0, 0];
+var gMouse = {};
+gMouse.isPressed = [false, false, false];
+gMouse.lastPosition = [-1, -1];
+gMouse.position = [-1, -1];
+gMouse.positionDelta = [0, 0];
+gMouse.wheelDelta = [0];
 
 // Timer
 var gPreviousTime = 0;
@@ -96,7 +104,6 @@ function loadFileAsync(fullFilePath, fileType, functionPtr)
 	xhr.onload = function(e) {
 		gAsyncLoading--;
 		functionPtr(this.response);
-
 		//console.log(e);
 		//console.log(this);
 	};
@@ -118,7 +125,6 @@ function setDefaultRenderStates()
 {
 	gl.clearColor(1.0, 1.0, 0.0, 1.0);
 	gl.clearDepth(1.0);
-	
 	gl.enable(gl.DEPTH_TEST);
 }
 
@@ -174,7 +180,7 @@ function initializeContent()
 	gl.useProgram(gShaderProgram);
 	
 	gUniformMatW = gl.getUniformLocation(gShaderProgram, "gMatW");
-	gUniformMatWI = gl.getUniformLocation(gShaderProgram, "gMatWI");
+	gUniformMatWIT = gl.getUniformLocation(gShaderProgram, "gMatWIT");
 	gUniformMatWVP = gl.getUniformLocation(gShaderProgram, "gMatWVP");
 	gUniformEyePos = gl.getUniformLocation(gShaderProgram, "gWorldEyePosition");
 	gUniformLight0Pos = gl.getUniformLocation(gShaderProgram, "gWorldLight0Position");
@@ -201,59 +207,59 @@ function update(elapsedTimeMillis)
 	// TODO Everything needs to be scaled according to the bounding sphere radius of the object
 	
 	// Update camera
-	if (gIsMousePressed[0])
+	if (gMouse.isPressed[0])
 	{
-		var deltaX = gMousePositionDelta[0] * elapsedTimeMillis * 0.3;
+		var deltaX = gMouse.positionDelta[0] * elapsedTimeMillis * 0.25;
 		var sinAngX = Math.sin(deltaX);
 		var cosAngX = Math.cos(deltaX);
-		//gCamera.eyePosition[1] += gMousePositionDelta[1] * elapsedTimeMillis*32;
-		//gCamera.eyePosition[0] += gMousePositionDelta[0] * elapsedTimeMillis*32;
 		
 		// Rotate lookAtPosition around up vector
-		var lookAtVec = vec3.sub(gCamera.lookAtPosition, gCamera.eyePosition);  
-		gCamera.lookAtPosition[0] = vec3.dot(lookAtVec, vec3.create(cosAngX, 0, sinAngX));
-		gCamera.lookAtPosition[1] = lookAtVec[1]; 
-		gCamera.lookAtPosition[2] = vec3.dot(lookAtVec, vec3.create(-sinAngX, 0, cosAngX));
-		gCamera.lookAtPosition = vec3.add(gCamera.lookAtPosition, gCamera.eyePosition);
+		var lookAtVec = gCamera.lookAtVec; 
+		gCamera.lookAtVec[0] = vec3.dot(lookAtVec, vec3.create(cosAngX, 0, sinAngX));
+		gCamera.lookAtVec[2] = vec3.dot(lookAtVec, vec3.create(-sinAngX, 0, cosAngX));
+		gCamera.lookAtVec = vec3.normalize(gCamera.lookAtVec);
 		
 		// Rotate lookAtPosition around right vector
-		var deltaY = gMousePositionDelta[1] * elapsedTimeMillis * 0.3;
+		var deltaY = -gMouse.positionDelta[1] * elapsedTimeMillis * 0.15;
 		var sinAngY = Math.sin(deltaY);
 		var cosAngY = Math.cos(deltaY);
 		
 		// Optimize using 3x3 matrices
-		var normalizedLookAtVec = vec3.normalize(lookAtVec);
-		var rightVec = vec3.normalize(vec3.cross(gCamera.upVector, normalizedLookAtVec));
-		var cameraBasis = mat4.createFromVec3(rightVec, gCamera.upVector, normalizedLookAtVec);
-		var invCameraBasis = mat4.transpose(cameraBasis);
-		var rotateX = mat4.rotateX(deltaY);
+		var rightVec = vec3.normalize( vec3.cross(gCamera.upVec, gCamera.lookAtVec) );
+		var upVec = vec3.cross(gCamera.lookAtVec, rightVec);
+		//efw.assert( vec3.isUnit(rightVec) );
+		//efw.assert( vec3.isUnit(upVec) );
+		//efw.assert( vec3.isUnit(gCamera.lookAtVec) );
+		 
+		var cameraMat = mat4.createFromVec3(rightVec, upVec, gCamera.lookAtVec);
+		var invCameraMat = mat4.transpose(cameraMat);
+		var rotateXMat = mat4.rotateX(deltaY);
+		var rotateOverRight = mat4.mul(mat4.mul(invCameraMat, rotateXMat), cameraMat);
 		
-		//var rotateOverRight = mat4.mul(mat4.mul(invCameraBasis, rotateX), cameraBasis);
-		//gCamera.upVector = vec3.mulMat4(gCamera.upVector, rotateOverRight);
-		//gCamera.upVector = vec3.mulMat4(gCamera.upVector, rotateOverRight);
+		//
+		//gCamera.upVec = vec3.normalize( vec3.mulMat4(gCamera.upVec, rotateOverRight) );
+		gCamera.lookAtVec = vec3.normalize( vec3.mulMat4(gCamera.lookAtVec, rotateOverRight) );
 		
 		//cancelRequestAnimFrame(gAnimationFrameRequest);
 		//while(true) {}
 	}
-	if (gMouseWheelDelta != 0)
+	if (gMouse.wheelDelta != 0)
 	{
-		var scaledLookAtVec = vec3.mulScalar(normalizedLookAtVec, gMouseWheelDelta*0.1);
-		
-		gCamera.eyePosition = vec3.add(gCamera.eyePosition, scaledLookAtVec);
-		gCamera.lookAtPosition = vec3.add(gCamera.lookAtPosition, scaledLookAtVec);
+		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, gMouse.wheelDelta*0.15);
+		gCamera.eyePos = vec3.add(gCamera.eyePos, scaledLookAtVec);
 	}
 	
 	//var matWorld = mat4.identity();
 	var matWorld = mat4.scale( vec3.create(1.0, 1.0, 1.0) );
-	var matWorldI = mat4.scale( vec3.create(1.0, 1.0, 1.0) );;
-	var matView = mat4.lookAtRH(gCamera.eyePosition, gCamera.lookAtPosition, gCamera.upVector);
+	var matWorldIT = mat4.scale( vec3.create(1.0, -1.0, 1.0) );
+	var matView = mat4.lookAtRH(gCamera.eyePos, vec3.add(gCamera.eyePos, gCamera.lookAtVec), gCamera.upVec);
 	var matPerspective = mat4.perspectiveFovRH(Math.PI*0.25, gl.viewportWidth/gl.viewportHeight, 0.1, 10000.0);
 	var matWVP = mat4.mul(matWorld, mat4.mul(matView, matPerspective));
 
 	gl.uniformMatrix4fv(gUniformMatW, false, new Float32Array(matWorld));
-	gl.uniformMatrix3fv(gUniformMatWI, false, new Float32Array( mat4.upper3x3(matWorldI) ));
+	gl.uniformMatrix3fv(gUniformMatWIT, false, new Float32Array( mat4.upper3x3(matWorldIT) ));
 	gl.uniformMatrix4fv(gUniformMatWVP, false, new Float32Array(matWVP));
-	gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePosition) );
+	gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePos) );
 	gl.uniform3fv(gUniformLight0Pos, new Float32Array(gLightPosition) );
 }
 
@@ -282,12 +288,13 @@ function draw(elapsedTimeMillis)
 }
 
 function onMouseMove(e) {
-	var mousePosition = [e.clientX, e.clientY];
-	gMousePositionDelta = [ mousePosition[0] - gMouseLastPosition[0], mousePosition[1] - gMouseLastPosition[1] ];
-	gMouseLastPosition = mousePosition;
+	gMouse.lastPosition = (gMouse.position[0] != -1)? gMouse.position : [e.clientX, e.clientY];
+	gMouse.position = [e.clientX, e.clientY];
+	gMouse.positionDelta[0] = gMouse.position[0] - gMouse.lastPosition[0];
+	gMouse.positionDelta[1] = gMouse.position[1] - gMouse.lastPosition[1];
 }
 function onMouseWheel(e) {
-	gMouseWheelDelta = e.wheelDelta;
+	gMouse.wheelDelta = e.wheelDelta;
 }
 
 function startApplication(canvas)
@@ -297,9 +304,9 @@ function startApplication(canvas)
 	loadContentAsync();
 	
 	//
-	canvas.addEventListener('mouseout', function(e) { gIsMousePressed = [false, false, false]; }, false);
-	canvas.addEventListener('mousedown', function(e) { gIsMousePressed[e.button] = true; gMouseLastPosition = [e.clientX, e.clientY]; /*console.log(e)*/ }, false);
-	canvas.addEventListener('mouseup', function(e) { gIsMousePressed[e.button] = false; /*console.log(e)*/ }, false);
+	canvas.addEventListener('mouseout', function(e) { gMouse.isPressed = [false, false, false]; gMouse.position = [-1,-1]; gMouse.lastPosition = [-1, -1]; }, false);
+	canvas.addEventListener('mousedown', function(e) { gMouse.isPressed[e.button] = true; /*console.log(e)*/ }, false);
+	canvas.addEventListener('mouseup', function(e) { gMouse.isPressed[e.button] = false; /*console.log(e)*/ }, false);
 	canvas.addEventListener('mousemove', onMouseMove, false);
 	canvas.addEventListener('mousewheel', onMouseWheel, false);
 	
@@ -328,32 +335,38 @@ function _mainLoop()
 {
 	gAnimationFrameRequest = requestAnimFrame(_mainLoop);
 	
-    var kMaxIterations = 60;
-    //var kDesiredElapsedTime = 1000/60.0; 
+    var kMaxIterations = 8;
     var kDesiredElapsedTime = 16;
+    var kInvDesiredElapsedTime = 1.0/16;
 
 	var currentTime = new Date().getTime();
 	//gElapsedTime += Math.max(currentTime - gPreviousTime, 0);
-	gElapsedTime += currentTime - gPreviousTime;
+	gElapsedTime = currentTime - gPreviousTime;
 	gPreviousTime = currentTime;
 
 	//console.log(gElapsedTime);
 	//console.log(kDesiredElapsedTime);
 	
 	// May update multiple times if many frames have passed
-	var i = 0;
-    while (gElapsedTime >= kDesiredElapsedTime && i < kMaxIterations)
+	var updateCount = Math.min( gElapsedTime*kInvDesiredElapsedTime, kMaxIterations);
+	//var invUpdateCount = 1.0/updateCount;
+	//gMouse.positionDelta[0] *= invUpdateCount;
+	//gMouse.positionDelta[1] *= invUpdateCount;
+	
+	var i;
+	for (i=0; i < updateCount; i++)
     {
-    	gElapsedTime -= kDesiredElapsedTime;
 		update(kDesiredElapsedTime*0.001);
 		i++;
     }
-    
+    //gElapsedTime -= updateCount*kDesiredElapsedTime;
+    //gElapsedTime = 0;
+    	    
     // Reset any input delta
-    gMousePositionDelta = [0, 0];
-    gMouseWheelDelta = 0;
+    gMouse.positionDelta = [0, 0];
+    gMouse.wheelDelta = 0;
     
     // Only render if the scene was updated and we are not more than 8 frames behind
-    if (i >= 1 && i <= 8)
+    if (i >= 1 && i <= 2)
 		draw(kDesiredElapsedTime*0.001);
 }
