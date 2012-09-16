@@ -1,5 +1,6 @@
 var efw = efw || {};
 efw.vec3 = efw.vec3 || {};
+efw.vec4 = efw.vec4 || {};
 efw.mat4 = efw.mat4 || {};
 
 efw.kEpsilon = 1e-6;
@@ -86,6 +87,65 @@ efw.vec3.cross = function(v1, v2) {
 		v1[2]*v2[0] - v1[0]*v2[2],
 		v1[0]*v2[1] - v1[1]*v2[0]
 	];
+}
+
+//efw.vec4.isVec4 = function(m){}
+efw.vec4.isVec4 = function(v) {
+	return (v && v.length == 4 &&
+		efw.isNumber(v[0]) &&
+		efw.isNumber(v[1]) &&
+		efw.isNumber(v[2]) &&
+		efw.isNumber(v[3])
+	);
+}
+efw.vec4.isUnit = function(v) {
+	efw.assert( efw.vec4.isVec4(v) );
+	return Math.abs(vec4.lengthSquared(v) - 1.0) < efw.kEpsilon;
+}
+efw.vec4.create = function(x, y, z, w) {
+	return [x, y, z, w];
+}
+efw.vec4.add = function(v1, v2) {
+	efw.assert( efw.vec4.isVec4(v1) && efw.vec4.isVec4(v2) );
+	return [v1[0]+v2[0], v1[1]+v2[1], v1[2]+v2[2], v1[3]+v2[3]];
+}
+efw.vec4.sub = function(v1, v2) {
+	efw.assert( efw.vec4.isVec4(v1) && efw.vec4.isVec4(v2) );
+	return [v1[0]-v2[0], v1[1]-v2[1], v1[2]-v2[2], v1[3]-v2[3]];
+}
+efw.vec4.mul = function(v1, v2) {
+	efw.assert( efw.vec4.isVec4(v1) && efw.vec4.isVec4(v2) );
+	return [ v1[0]*v2[0], v1[1]*v2[1], v1[2]*v2[2], v1[3]*v2[3] ];
+}
+efw.vec4.mulMat4 = function(v, m) {
+	efw.assert( efw.vec4.isVec4(v) && efw.mat4.isMat4(m) );
+	return [ 
+		v[0]*m[0]+v[1]*m[4]+v[2]*m[8]+v[3]*m[12],
+		v[0]*m[1]+v[1]*m[5]+v[2]*m[9]+v[3]*m[13],
+		v[0]*m[2]+v[1]*m[6]+v[2]*m[10]+v[3]*m[14],
+		v[0]*m[3]+v[1]*m[7]+v[2]*m[11]+v[3]*m[15]
+		];
+}
+efw.vec4.mulScalar = function(v, s) {
+	efw.assert( efw.vec4.isVec4(v) && efw.isNumber(s) );
+	return [ v[0]*s, v[1]*s, v[2]*s, v[3]*s ];
+}
+efw.vec4.length = function(v) {
+	efw.assert( efw.vec4.isVec4(v) );
+	return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]+v[3]*v[3]);
+}
+efw.vec4.lengthSquared = function(v) {
+	efw.assert( efw.vec4.isVec4(v) );
+	return v[0]*v[0]+v[1]*v[1]+v[2]*v[2]+v[3]*v[3];
+}
+efw.vec4.normalize = function(v) {
+	efw.assert( efw.vec4.isVec4(v) );
+	var lengthInv = 1.0/efw.vec4.length(v);
+	return [v[0]*lengthInv, v[1]*lengthInv, v[2]*lengthInv, v[3]*lengthInv];
+}
+efw.vec4.dot = function(v1, v2) {
+	efw.assert( efw.vec4.isVec4(v1) && efw.vec4.isVec4(v2) );
+	return (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]+v1[3]*v2[3]);
 }
 
 // Matrices work (and shoulb be used) as row-major matrices
