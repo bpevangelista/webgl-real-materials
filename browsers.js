@@ -1,5 +1,6 @@
 // Global variable for OpenGL
 var gl;
+var glExtensions = [];
 
 /* http://paulirish.com/2011/requestanimationframe-for-smart-animating/ */
 window.requestAnimFrame = ( function() {
@@ -19,13 +20,24 @@ function initializeGL(canvas)
 			|| canvas.getContext("experimental-webgl");
 	} 
 	catch (e) { 
-		alert("Your browser don't support WebGL!");
+		alert("Your browser doesn't support WebGL!\nPlease, try the latest version of Firefox, Chrome or Safari.");
 	}
 	
 	if (gl) {
 		gl = WebGLDebugUtils.makeDebugContext(gl);
 		gl.viewportWidth = canvas.width;
 		gl.viewportHeight = canvas.height;
+		
+		// Grab available extensions
+		glExtensions.push( gl.getExtension("WEBGL_compressed_texture_s3tc") ||
+			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") );
+		console.log(glExtensions);
+		
+		if (glExtensions[0] == null)
+		{
+			alert("Your browser supports WebGL but does NOT support compressed textures!\nPlease, try the latest version of Firefox, Chrome or Safari.");
+			gl = null;
+		}
 	}
 }
 
