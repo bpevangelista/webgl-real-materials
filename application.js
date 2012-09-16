@@ -1,6 +1,7 @@
 // Using namespaces
 window.vec3 = efw.vec3;
 window.mat4 = efw.mat4;
+window.shaderHelper = efw.shaderHelper;
 
 // Shaders
 //var gVS_Simple = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec2 aUv0; varying vec4 oColor; void main(void) { gl_Position = vec4(aPosition, 1.0); oColor = vec4(0,0,0,0); }';
@@ -234,9 +235,9 @@ function initializeContent()
 	gMeshes = null;
 	//console.log(gMeshesGL);
 	
-	var vertexShader = compileShader(gVS_Phong, gl.VERTEX_SHADER);
-	var fragmentShader = compileShader(gFS_Phong, gl.FRAGMENT_SHADER);
-	gShaderProgram = linkShader(vertexShader, fragmentShader);
+	var vertexShader = shaderHelper.compileShader(gVS_Phong, gl.VERTEX_SHADER);
+	var fragmentShader = shaderHelper.compileShader(gFS_Phong, gl.FRAGMENT_SHADER);
+	gShaderProgram = shaderHelper.linkShader(vertexShader, fragmentShader);
 	gl.useProgram(gShaderProgram);
 	
 	gUniformMatW = gl.getUniformLocation(gShaderProgram, "gMatW");
