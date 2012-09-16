@@ -129,10 +129,10 @@ function loadFileAsync(fullFilePath, fileType, functionPtr)
 function loadContentAsync()
 {
 	// Load meshes and shaders
-	loadFileAsync('sponza-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
-	loadFileAsync('sponza-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
-	loadFileAsync('sponza-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
-	loadFileAsync('sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
+	loadFileAsync('assets/sponza-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
+	loadFileAsync('assets/sponza-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
+	loadFileAsync('assets/sponza-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
+	loadFileAsync('assets/sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
 }
 
 
@@ -155,6 +155,7 @@ function initializeContent()
 	
 	// ------------------------------------------------------------
 	//console.log(gMaterials);
+	//console.log(gMaterialsRawData);
 	gMaterialsGL = new Array(gMaterials.length);
 	
 	var dataIndex = 0;
@@ -163,12 +164,21 @@ function initializeContent()
 		var material = gMaterials[i];
 		var albedoTexture = material.albedoTexture;
 		if (albedoTexture == null)
+		{
+			console.log("Material has no albedo texture.")
+			console.log(material);
 			continue;
+		}
 		
 		//dataIndex = ((dataIndex + 3) & ~3);
-		var textureSize = Math.max(albedoTexture.width * albedoTexture.height * 4, 8);
+		var textureSize = Math.max(albedoTexture.width * albedoTexture.height * 4, 4);
 		var textureData = new Uint8Array(gMaterialsRawData, dataIndex, textureSize);
 		dataIndex += textureSize;
+		if (dataIndex > gMaterialsRawData.byteLength)
+		{
+			console.log("Materials description file or binary file are corrupted!");
+			break;
+		}
 		
 		var textureBuffer = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
@@ -182,6 +192,7 @@ function initializeContent()
    	}
 	gMaterials = null;
 	gMaterialsRawData = null;
+	//console.log(gMaterialsGL);
 	
 	// ------------------------------------------------------------
 	//console.log(gMeshes);
@@ -204,7 +215,7 @@ function initializeContent()
 		var indices = new Uint16Array(gMeshesRawData, dataIndex, mesh.indexCount);
 		dataIndex += dataSize;
 
-		// Debug		
+		// Debug
 		//console.log(vertices);
 		//console.log(indices);
 		
@@ -217,13 +228,11 @@ function initializeContent()
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
 		gMeshesGL[i] = { materialId:mesh.materialId, vertexBuffer:vertexBuffer, indexBuffer:indexBuffer, indexCount:mesh.indexCount };
-		
-		//
-		//break;
 	}
 	// Release data
 	gMeshesRawData = null;
 	gMeshes = null;
+	//console.log(gMeshesGL);
 	
 	var vertexShader = compileShader(gVS_Phong, gl.VERTEX_SHADER);
 	var fragmentShader = compileShader(gFS_Phong, gl.FRAGMENT_SHADER);
@@ -244,13 +253,14 @@ function initializeContent()
 	gl.enableVertexAttribArray(gAttr1);
 	gl.enableVertexAttribArray(gAttr2);
 
-	// Debug matrices
+	// Debug
 	//console.log("Max GL Attribs: " + gl.getParameter(gl.MAX_VERTEX_ATTRIBS));
 	//console.log( matWorld );
 	//console.log( matWorldI );
 	//console.log( matView );
 	//console.log( matPerspective );
 	//console.log( matWVP );
+	//console.log( gUniformSamplerAlbedo );
 }
 
 
@@ -333,8 +343,9 @@ function draw(elapsedTimeMillis)
 			
 		var meshGL = gMeshesGL[i];
 		var material = gMaterialsGL[meshGL.materialId];
-		//console.log(material);
 		//console.log(meshGL);
+		//console.log(material);
+
 		if (material)
 		{
         	gl.bindTexture(gl.TEXTURE_2D, material.albedoTexture);
@@ -444,10 +455,7 @@ function _mainLoop()
 		i++;
     }
     //console.timeEnd("update-all");
-
-    //gElapsedTime -= updateCount*kDesiredElapsedTime;
-    //gElapsedTime = 0;
-    	        
+       
     // Only render if the scene was updated and we are not more than 8 frames behind
     if (i >= 1 && i <= 2)
     {
