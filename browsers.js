@@ -2,6 +2,9 @@
 var gl;
 var glExtensions = [];
 
+var efw = efw || {};
+efw.shaderHelper = efw.shaderHelper || {};
+
 /* http://paulirish.com/2011/requestanimationframe-for-smart-animating/ */
 window.requestAnimFrame = ( function() {
 	return window.requestAnimationFrame 
@@ -20,7 +23,7 @@ function initializeGL(canvas)
 			|| canvas.getContext("experimental-webgl");
 	} 
 	catch (e) { 
-		alert("Your browser doesn't support WebGL!\nPlease, try the latest version of Firefox, Chrome or Safari.");
+		alert("Your browser doesn't support WebGL! Please, try the latest version of Firefox, Chrome or Safari.");
 	}
 	
 	if (gl) {
@@ -33,16 +36,15 @@ function initializeGL(canvas)
 			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") );
 		console.log(glExtensions);
 		
-		if (glExtensions[0] == null)
+		if (gl.compressedTexImage2D == null)
 		{
-			alert("Your browser supports WebGL but does NOT support compressed textures!\nPlease, try the latest version of Firefox, Chrome or Safari.");
-			gl = null;
+			alert("Your browser supports WebGL but NOT compressed textures! We will fallback to normal textures but that will be slow...");
 		}
 	}
 }
 
 
-function compileShader(shaderSource, shaderType)
+efw.shaderHelper.compileShader = function(shaderSource, shaderType)
 {
 	var shader = gl.createShader(shaderType);
 	if (!shader) return null;
@@ -63,7 +65,7 @@ function compileShader(shaderSource, shaderType)
 }
 
 
-function linkShader(vertexShader, fragmentShader)
+efw.shaderHelper.linkShader = function(vertexShader, fragmentShader)
 {
 	var program = gl.createProgram();
 	gl.attachShader(program, vertexShader);
