@@ -27,18 +27,26 @@ function initializeGL(canvas)
 	}
 	
 	if (gl) {
-		gl = WebGLDebugUtils.makeDebugContext(gl);
+		//gl = WebGLDebugUtils.makeDebugContext(gl);
 		gl.viewportWidth = canvas.width;
 		gl.viewportHeight = canvas.height;
 		
 		// Grab available extensions
 		glExtensions.push( gl.getExtension("WEBGL_compressed_texture_s3tc") ||
-			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") );
+			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || 
+			gl.getExtension("MOZ_WEBGL_compressed_texture_s3tc") );
 		console.log(glExtensions);
 		
-		if (gl.compressedTexImage2D == null)
+		if (gl.compressedTexImage2D != null)
 		{
-			alert("Your browser supports WebGL but NOT compressed textures! We will fallback to normal textures but that will be slow...");
+			gl.COMPRESSED_RGBA_S3TC_DXT1_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT1_EXT;
+			gl.COMPRESSED_RGBA_S3TC_DXT3_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			gl.COMPRESSED_RGBA_S3TC_DXT5_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT5_EXT;
+			gl.COMPRESSED_RGB_S3TC_DXT1_EXT = glExtensions[0].COMPRESSED_RGB_S3TC_DXT1_EXT;
+		}
+		else
+		{
+			alert("Your browser supports WebGL but doesn't support compressed textures! We will fallback to non-compressed textures but that will be slow...");
 		}
 	}
 }
