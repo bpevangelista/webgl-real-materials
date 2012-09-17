@@ -51,16 +51,19 @@ var gFS_Phong =
 +"	float specularIntensity = max(dot(worldNormalVec, halfLightEyeVec), 0.0);\n"
 //+"	vec4 surfaceColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 +"	vec4 surfaceColor = texture2D(gAlbedo, oUv0);"
-+"	float temp = surfaceColor.r; surfaceColor.r = surfaceColor.b; surfaceColor.b = temp;"
+//+"	float temp = surfaceColor.r; surfaceColor.r = surfaceColor.b; surfaceColor.b = temp;"
 +"	vec4 lightColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 +""
++"		lightAttnCoeff *= (0.7 + 0.7 * pow(specularIntensity, 9.0));"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor + lightColor * lightAttnCoeff * specularIntensity;"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor;"
 //+"	lightAttnCoeff = max(lightAttnCoeff + lightAttnCoeff*pow(specularIntensity, 8.0), 0.05);"
 //
 +"	gl_FragColor = surfaceColor * vec4(lightAttnCoeff, lightAttnCoeff, lightAttnCoeff, 1);"
 //+"	worldNormalVec = worldNormalVec * 0.5 + vec3(0.5);"
++""
 //+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
+//+"	gl_FragColor = vec4(worldEyeVec.x, worldEyeVec.y, worldEyeVec.z, 1);"
 +"}"
 +"";
 
@@ -132,8 +135,16 @@ function loadContentAsync()
 	// Load meshes and shaders
 	loadFileAsync('assets/sponza-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
 	loadFileAsync('assets/sponza-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
-	loadFileAsync('assets/sponza-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
-	loadFileAsync('assets/sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
+	if (gl.compressedTexImage2D)
+	{
+		loadFileAsync('assets/sponza-compressed_materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
+		loadFileAsync('assets/sponza-compressed_materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
+	}
+	else
+	{
+		loadFileAsync('assets/sponza-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
+		loadFileAsync('assets/sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
+	}
 }
 
 
@@ -163,6 +174,7 @@ function initializeContent()
 	for (i=0; i<gMaterials.length; i++)
 	{
 		var material = gMaterials[i];
+
 		var albedoTexture = material.albedoTexture;
 		if (albedoTexture == null)
 		{
@@ -171,25 +183,51 @@ function initializeContent()
 			continue;
 		}
 		
-		//dataIndex = ((dataIndex + 3) & ~3);
-		var textureSize = Math.max(albedoTexture.width * albedoTexture.height * 4, 4);
-		var textureData = new Uint8Array(gMaterialsRawData, dataIndex, textureSize);
-		dataIndex += textureSize;
+		var textureSize = albedoTexture.size;
+		var textureBuffer = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+		
+		if (gl.compressedTexImage2D != null)
+		{
+			var width = albedoTexture.width;
+			var height = albedoTexture.height;
+			var totalLayerSize = 0;
+			
+			for (var j=0; j<albedoTexture.mipCount; ++j)
+			{
+				var layerSize = Math.max(1, Math.floor((width+3)/4)) * Math.max(1, Math.floor((height+3)/4)) * 8;
+				totalLayerSize += layerSize;
+				
+				//dataIndex = ((dataIndex + 7) & ~7);
+				var mipTextureData = new Uint8Array(gMaterialsRawData, dataIndex, layerSize);
+				dataIndex += layerSize;
+			
+				gl.compressedTexImage2D(gl.TEXTURE_2D, j, gl.COMPRESSED_RGBA_S3TC_DXT1_EXT, Math.max(1, width), Math.max(1, height), 0, mipTextureData);
+				width >>= 1;
+				height >>= 1;
+			}
+		}
+		else
+		{
+			//dataIndex = ((dataIndex + 3) & ~3);
+			var textureData = new Uint8Array(gMaterialsRawData, dataIndex, textureSize);
+			dataIndex += textureSize;
+			
+			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, albedoTexture.width, albedoTexture.height, 0, gl.RGBA, 
+				gl.UNSIGNED_BYTE, textureData);
+			gl.generateMipmap(gl.TEXTURE_2D);
+		}
+		
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+    	gMaterialsGL[i] = {albedoTexture:textureBuffer};
+    	
 		if (dataIndex > gMaterialsRawData.byteLength)
 		{
 			console.log("Materials description file or binary file are corrupted!");
-			break;
 		}
-		
-		var textureBuffer = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
-		//gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, albedoTexture.width, albedoTexture.height, 0, gl.RGBA, 
-			gl.UNSIGNED_BYTE, textureData);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    	
-    	gMaterialsGL[i] = {albedoTexture:textureBuffer};
+
    	}
 	gMaterials = null;
 	gMaterialsRawData = null;
@@ -312,7 +350,7 @@ function update(elapsedTimeMillis)
 	}
 	if (gMouse.wheelDelta != 0)
 	{
-		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, gMouse.wheelDelta*0.15);
+		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, gMouse.wheelDelta*elapsedTimeMillis*13);
 		gCamera.eyePos = vec3.add(gCamera.eyePos, scaledLookAtVec);
 	}
 	
@@ -384,7 +422,7 @@ function onMouseWheel(e) {
 	gMouseWrite.wheelDelta = e.wheelDelta;
 }
 function onMouseWheelFirefox(e) {
-	gMouseWrite.wheelDelta = e.detail*-120;
+	gMouseWrite.wheelDelta = e.detail*-40;
 }
 
 function startApplication(canvas)
