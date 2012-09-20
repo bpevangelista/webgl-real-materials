@@ -1,3 +1,16 @@
+/**
+ * Copyright (C) 2012 Bruno P. Evangelista. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 var efw = efw || {};
 efw.vec3 = efw.vec3 || {};
 efw.vec4 = efw.vec4 || {};
@@ -186,15 +199,15 @@ efw.mat4.upper3x3 = function(m) {
 		m[8], m[9], m[10] 
 	];
 }
-efw.mat4.lookAtRH = function(eyePos, lookAtPos, upVec) {
+efw.mat4.lookAt = function(eyePos, lookAtPos, upVec) {
 	var axisZ = efw.vec3.normalize( efw.vec3.sub(lookAtPos, eyePos) );
 	var axisX = efw.vec3.normalize( efw.vec3.cross(upVec, axisZ) );
 	var axisY = efw.vec3.cross(axisZ, axisX);
 
 	return [
-		axisX[0], axisX[1], axisX[2], efw.vec3.dot(axisX, eyePos),
-		axisY[0], axisY[1], axisY[2], efw.vec3.dot(axisY, eyePos),
-		axisZ[0], axisZ[1], axisZ[2], efw.vec3.dot(axisZ, eyePos),
+		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
+		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
+		axisZ[0], axisZ[1], axisZ[2], -efw.vec3.dot(axisZ, eyePos),
 		0, 0, 0, 1
 	];
 }
