@@ -1,3 +1,16 @@
+/**
+ * Copyright (C) 2012 Bruno P. Evangelista. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 // Using namespaces
 window.vec3 = efw.vec3;
 window.mat4 = efw.mat4;
@@ -54,12 +67,12 @@ var gFS_Phong =
 //+"	float temp = surfaceColor.r; surfaceColor.r = surfaceColor.b; surfaceColor.b = temp;"
 +"	vec4 lightColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 +""
-+"		lightAttnCoeff *= (0.7 + 0.7 * pow(specularIntensity, 9.0));"
++"		lightAttnCoeff *= (0.7 + 0.7 * pow(specularIntensity, 12.0));"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor + lightColor * lightAttnCoeff * specularIntensity;"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor;"
 //+"	lightAttnCoeff = max(lightAttnCoeff + lightAttnCoeff*pow(specularIntensity, 8.0), 0.05);"
 //
-+"	gl_FragColor = surfaceColor * vec4(lightAttnCoeff, lightAttnCoeff, lightAttnCoeff, 1);"
++"	gl_FragColor = surfaceColor * vec4(0.05 + lightAttnCoeff, 0.05+lightAttnCoeff, 0.05+lightAttnCoeff, 1);"
 //+"	worldNormalVec = worldNormalVec * 0.5 + vec3(0.5);"
 +""
 //+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
@@ -85,10 +98,10 @@ var gMaterialsGL = [];
 
 // Camera and Light
 //var gLightPosition = [1000, -10000, 500];
-var gLightPosition = [0.0, -800.0, 0.0];
+var gLightPosition = [0.0, 1400.0, 0.0];
 var gCamera = {};
-gCamera.eyePos = [-500.0, -800.0, 0.0];
-gCamera.lookAtVec = vec3.normalize([1.0, 0.0, 0.0]);
+gCamera.eyePos = [-500.0, 700.0, 0.0];
+gCamera.lookAtVec = vec3.normalize([-1.0, 0.0, 0.0]);
 gCamera.upVec = [0.0, 1.0, 0.0];
 
 // Events
@@ -219,8 +232,8 @@ function initializeContent()
 			gl.generateMipmap(gl.TEXTURE_2D);
 		}
 		
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
     	gMaterialsGL[i] = {albedoTexture:textureBuffer};
     	
 		if (dataIndex > gMaterialsRawData.byteLength)
@@ -314,7 +327,7 @@ function update(elapsedTimeMillis)
 	// Update camera
 	if (gMouse.isPressed[0])
 	{
-		var deltaX = positionDelta[0] * elapsedTimeMillis * 0.25;
+		var deltaX = positionDelta[0] * elapsedTimeMillis * 0.12;
 		var sinAngX = Math.sin(deltaX);
 		var cosAngX = Math.cos(deltaX);
 		
@@ -325,7 +338,7 @@ function update(elapsedTimeMillis)
 		gCamera.lookAtVec = vec3.normalize(gCamera.lookAtVec);
 		
 		// Rotate lookAtPosition around right vector
-		var deltaY = -positionDelta[1] * elapsedTimeMillis * 0.15;
+		var deltaY = -positionDelta[1] * elapsedTimeMillis * 0.07;
 		var sinAngY = Math.sin(deltaY);
 		var cosAngY = Math.cos(deltaY);
 		
@@ -350,14 +363,14 @@ function update(elapsedTimeMillis)
 	}
 	if (gMouse.wheelDelta != 0)
 	{
-		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, gMouse.wheelDelta*elapsedTimeMillis*13);
+		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, -gMouse.wheelDelta * elapsedTimeMillis * 7);
 		gCamera.eyePos = vec3.add(gCamera.eyePos, scaledLookAtVec);
 	}
 	
 	//var matWorld = mat4.identity();
 	var matWorld = mat4.scale( vec3.create(1.5, 1.0, 1.5) );
-	var matWorldIT = mat4.scale( vec3.create(1/1.5, -1.0, 1/1.5) );
-	var matView = mat4.lookAtRH(gCamera.eyePos, vec3.add(gCamera.eyePos, gCamera.lookAtVec), gCamera.upVec);
+	var matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
+	var matView = mat4.lookAt(gCamera.eyePos, vec3.add(gCamera.eyePos, gCamera.lookAtVec), gCamera.upVec);
 	var matPerspective = mat4.perspectiveFovRH(Math.PI*0.35, gl.viewportWidth/gl.viewportHeight, 1.0, 5000.0);
 	var matWVP = mat4.mul(matWorld, mat4.mul(matView, matPerspective));
 
@@ -425,10 +438,28 @@ function onMouseWheelFirefox(e) {
 	gMouseWrite.wheelDelta = e.detail*-40;
 }
 
-function startApplication(canvas)
+function _waitForContent(functionPtr)
+{
+	if (gAsyncLoading == 0)
+		functionPtr();
+	else
+		setTimeout(function() { _waitForContent(functionPtr); }, 1000);
+}
+
+function applicationResize(canvas)
+{
+	var desiredWidth = (window.innerWidth+31) & ~31;
+	var desiredHeight = (window.innerHeight+31) & ~31;
+	canvas.width = desiredWidth;
+	canvas.height = desiredHright;
+	gl.viewportWidth = canvas.width;
+	gl.viewportHeight = canvas.height;
+	//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
+}
+
+function applicationStart(canvas)
 {
 	initializeGL(canvas);
-	
 	loadContentAsync();
 	
 	//
@@ -442,64 +473,79 @@ function startApplication(canvas)
 	_waitForContent(_initialize);
 }
 
-function _waitForContent(functionPtr)
-{
-	if (gAsyncLoading == 0)
-		functionPtr();
-	else
-		setTimeout(function() { _waitForContent(functionPtr); }, 1000);
-}
-
 function _initialize()
 {
-	var loadingDiv = document.getElementById("div-loading");			 
+	initializeContent();
+	
+	var loadingDiv = document.getElementById("loading-hud");			 
 	if (loadingDiv)
 	{
 		loadingDiv.parentNode.removeChild(loadingDiv);
 	}
-	initializeContent();
-	
+
 	// Must set gPreviousTime before main loop starts
 	gPreviousTime = new Date().getTime();
+	//setTimeout(showFPS, 1000.0);
 	requestAnimFrame(_mainLoop);
 }
 
+var gUpdateFps = 0;
+var gDrawFps = 0;
+function showFPS()
+{
+	return;
+	setTimeout(showFPS, 1000.0);
 
+	var canvas = document.getElementById("webgl-canvas");
+	var context = canvas.getContext("2d");
+	console.log(canvas);
+	console.log(context);
+	context.fillStyle = "Black";
+	context.font      = "normal 16pt Arial";
+	context.fillText(gUpdateFps + " " + gDrawFps + " update/draw fps", 10, 26);
+
+	gUpdateFps = 0;
+	gDrawFps = 0;
+}
+    
 function _mainLoop()
 {
 	gAnimationFrameRequest = requestAnimFrame(_mainLoop);
 	
-    var kMaxIterations = 4;
-    var kDesiredElapsedTime = 16;
-    var kInvDesiredElapsedTime = 1.0/16;
+    var kMaxIterations = 3;
+    var kDesiredElapsedTime = 32;
+    var kInvDesiredElapsedTime = 1.0/kDesiredElapsedTime;
 
 	var currentTime = new Date().getTime();
 	//gElapsedTime += Math.max(currentTime - gPreviousTime, 0);
-	gElapsedTime = currentTime - gPreviousTime;
+	gElapsedTime += currentTime - gPreviousTime;
 	gPreviousTime = currentTime;
 	//console.log(gElapsedTime);
 	
 	// May update multiple times if many frames have passed
-	var updateCount = Math.min( gElapsedTime*kInvDesiredElapsedTime, kMaxIterations);
+	var requiredUpdateCount = Math.floor(gElapsedTime*kInvDesiredElapsedTime);
+	if (requiredUpdateCount > 0)
+		gElapsedTime = 0;
 
 	//console.time("update-all")
-	var i;
-	for (i=0; i < updateCount; i++)
+	var loopCount = Math.min( requiredUpdateCount, kMaxIterations);
+	for (var i=0; i < loopCount; i++)
     {
 		updateMouse();
 
     	//console.time("update")
 		update(kDesiredElapsedTime*0.001);
 		//console.timeEnd("update");
-		i++;
+		gUpdateFps++;
     }
     //console.timeEnd("update-all");
        
     // Only render if the scene was updated and we are not more than 8 frames behind
-    if (i >= 1 && i <= 2)
+    if (requiredUpdateCount >= 1 && requiredUpdateCount <= 2)
     {
     	//console.time("draw");
 		draw(kDesiredElapsedTime*0.001);
 		//console.timeEnd("draw");
+		gDrawFps++;
 	}
 }
