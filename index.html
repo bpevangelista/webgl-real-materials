@@ -1,27 +1,45 @@
 <html>
 
 <head>
-<title>Web-GL Project: Crytek's Sponza Model - by Bruno Evangelista</title>
+<title>WebGL: Crytek's Sponza Model - by Bruno Evangelista</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Nothing+You+Could+Do'>
+<link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
+<!-- Debug -->
 <script type="text/javascript" src="webgl-debug.js"></script>
+<script type="text/javascript" src="efw-math_d.js"></script>
+<!-- Release -->
+<!-- <script type="text/javascript" src="efw-math.js"></script> -->
+
 <script type="text/javascript" src="browsers.js"></script>
-<script type="text/javascript" src="efw-math.js"></script>
 <script type="text/javascript" src="application.js"></script>
 
 <script>
-function applicationStart() {
-	var canvas = document.getElementById("webgl-canvas");
-	startApplication(canvas);
-}
+	
 </script>
+<body onload='applicationStart( document.getElementById("webgl-canvas") );' 
+	onresize='applicationResize( document.getElementById("webgl-canvas") );'>
 
-<body onload="applicationStart();">
-	<div id="div-loading"><div> Loading Awesome Demo! Please Wait... <img src="loading.gif" alt="loading-icon"/></div></div>
-	<!-- <canvas id="webgl-canvas" style="border: none; background-color:gray;" width="1280px" height="720px"></canvas> -->
-	<canvas id="webgl-canvas" style="border: none; background-color:gray;" width="1100px" height="620px"></canvas>
-	<div><div>-- by Bruno Evangelista</div><div align="center">Use mouse left-button and wheel to navigate.</div></div>
+	<canvas id="webgl-canvas" class="background"></canvas>
+	
+	<!--
+	<div style="width:1100px;">
+		<div>Tech: Physically based shading, Async loading (XMLHttpRequest), WebGL compressed textures and much more...</div>
+		<div style="text-align:center;font-weight:bold;">Use mouse left-button and wheel to navigate.
+			<span style="float:right;font-weight:normal;font-size:20px; font-family:'Nothing You Could Do',cursive;">- by Bruno Evangelista</span>
+		</div>
+	</div>
+	-->
+	
+	<div id="message-hud" class="topmost no-pointer"></div>
+	<div id="loading-hud" class="topmost no-pointer">Loading Awesome WebGL Demo!<br/><br/>Please Wait...<br/><img src="loading.gif" width="48" height="48" alt="loading-icon"/></div>
+	<div id="signature-hud" class="topmost no-pointer">- by Bruno Evangelista&nbsp;&nbsp;</div>
+				
+	<!-- <div style="z-index=1000;position:absolute;left:20px;top:10px;font-size:18;color:rgba(1.0,1.0,1.0,1.0);background:rgba(0,0,0,0);">FPS: </div> -->
+	<!-- <div style="z-index:10001;position:absolute; left: 200px; top: 200px; color: #fff;display: none; background: rgba(0,0,0,0.4);">GAEYAGEYAGEYG FPS: </div> -->
+
 </body>
 
 </html>
