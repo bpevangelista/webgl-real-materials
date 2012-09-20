@@ -266,9 +266,9 @@ efw.mat4.lookAt = function(eyePos, lookAtPos, upVec) {
 	var axisY = efw.vec3.cross(axisZ, axisX);
 
 	return [
-		axisX[0], axisX[1], axisX[2], efw.vec3.dot(axisX, eyePos),
-		axisY[0], axisY[1], axisY[2], efw.vec3.dot(axisY, eyePos),
-		axisZ[0], axisZ[1], axisZ[2], efw.vec3.dot(axisZ, eyePos),
+		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
+		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
+		axisZ[0], axisZ[1], axisZ[2], -efw.vec3.dot(axisZ, eyePos),
 		0, 0, 0, 1
 	];
 }
