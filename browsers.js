@@ -1,3 +1,16 @@
+/**
+ * Copyright (C) 2012 Bruno P. Evangelista. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 // Global variable for OpenGL
 var gl;
 var glExtensions = [];
@@ -5,7 +18,7 @@ var glExtensions = [];
 var efw = efw || {};
 efw.shaderHelper = efw.shaderHelper || {};
 
-/* http://paulirish.com/2011/requestanimationframe-for-smart-animating/ */
+
 window.requestAnimFrame = ( function() {
 	return window.requestAnimationFrame 
 		|| window.webkitRequestAnimationFrame
@@ -18,18 +31,27 @@ window.requestAnimFrame = ( function() {
 
 function initializeGL(canvas)
 {
+	var loadingHud = document.getElementById("loading-hud");
+	var messageHud = document.getElementById("message-hud");
+
 	try {
 		gl = canvas.getContext("webgl")
 			|| canvas.getContext("experimental-webgl");
 	} 
-	catch (e) { 
-		alert("Your browser doesn't support WebGL! Please, try the latest version of Firefox, Chrome or Safari.");
+	catch (e) {
+		loadingHud.style.color = "#CC0000";
+		loadingHud.innerHTML = "Your browser does not support WebGL!<br/>Please, try the latest version of Firefox, Chrome or Safari.";
 	}
 	
 	if (gl) {
-		//gl = WebGLDebugUtils.makeDebugContext(gl);
+		gl = WebGLDebugUtils.makeDebugContext(gl);
+		var desiredWidth = (window.innerWidth+31) & ~31;
+		var desiredHeight = (window.innerHeight+31) & ~31;
+		canvas.width = desiredWidth;
+		canvas.height = desiredHeight;
 		gl.viewportWidth = canvas.width;
 		gl.viewportHeight = canvas.height;
+		//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
 		
 		// Grab available extensions
 		glExtensions.push( gl.getExtension("WEBGL_compressed_texture_s3tc") ||
@@ -46,7 +68,8 @@ function initializeGL(canvas)
 		}
 		else
 		{
-			alert("Your browser supports WebGL but doesn't support compressed textures! We will fallback to non-compressed textures but that will be slow...");
+			messageHud.style.color = "yellow";
+			messageHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";
 		}
 	}
 }
