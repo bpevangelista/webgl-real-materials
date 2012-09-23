@@ -8,19 +8,47 @@
 </head>
 
 <!-- Debug -->
+<!-- <script type="text/javascript" src="efw-math_d.js"></script>-->
 <script type="text/javascript" src="webgl-debug.js"></script>
-<script type="text/javascript" src="efw-math_d.js"></script>
-<!-- Release -->
-<!-- <script type="text/javascript" src="efw-math.js"></script> -->
 
-<script type="text/javascript" src="browsers.js"></script>
+<!-- Release -->
+<script type="text/javascript" src="efw.js"></script>
+<script type="text/javascript" src="efw-math.js"></script>
+<script type="text/javascript" src="shaderhelper.js"></script>
 <script type="text/javascript" src="application.js"></script>
 
 <script>
+var gCenterHud;
+var gBottomLeftHud;
+var gFpsHud;
+
+function startApplication() 
+{
+	gCenterHud = gCenterHud || document.getElementById("center-hud"); 
+	gBottomLeftHud = gBottomLeftHud || document.getElementById("bottomleft-hud");
+	gFpsHud = gFpsHud || document.getElementById("fps-hud");
 	
+	var canvas = document.getElementById("webgl-canvas");
+	if (!gApplication.start(canvas))
+	{
+		gCenterHud.style.color = "#CC0000";
+		gCenterHud.innerHTML = 'Your browser does not support WebGL!<br/>' + 
+			'Please, try the latest version of Firefox, Chrome or Safari.';
+		return;
+	}
+	
+	if (gl.compressedTexImage2D == null)
+	{
+		gBottomLeftHud.style.color = "yellow";
+		gBottomLeftHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";
+	}
+	
+	gApplication.run();
+}
 </script>
-<body onload='applicationStart( document.getElementById("webgl-canvas") );' 
-	onresize='applicationResize( document.getElementById("webgl-canvas") );'>
+
+<body onload='startApplication();' 
+	onresize='gApplication.resizeCanvas();'>
 
 	<canvas id="webgl-canvas" class="background"></canvas>
 	
@@ -33,8 +61,12 @@
 	</div>
 	-->
 	
-	<div id="message-hud" class="topmost no-pointer"></div>
-	<div id="loading-hud" class="topmost no-pointer">Loading Awesome WebGL Demo!<br/><br/>Please Wait...<br/><img src="loading.gif" width="48" height="48" alt="loading-icon"/></div>
+	<div id="fps-hud" class="topmost no-pointer"></div>
+	<div id="center-hud" class="topmost no-pointer">
+		Loading Awesome WebGL Demo!<br/><br/>Please Wait...<br/>
+		<img src="loading.gif" width="48" height="48" alt="loading-icon"/>
+	</div>
+	<div id="bottomleft-hud" class="topmost no-pointer"></div>
 	<div id="signature-hud" class="topmost no-pointer">- by Bruno Evangelista&nbsp;&nbsp;</div>
 				
 	<!-- <div style="z-index=1000;position:absolute;left:20px;top:10px;font-size:18;color:rgba(1.0,1.0,1.0,1.0);background:rgba(0,0,0,0);">FPS: </div> -->
