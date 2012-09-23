@@ -11,14 +11,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-// Global variable for OpenGL
-var gl;
-var glExtensions = [];
 
-var efw = efw || {};
-efw.shaderHelper = efw.shaderHelper || {};
-
-
+// Browser compatibility layer
 window.requestAnimFrame = ( function() {
 	return window.requestAnimationFrame 
 		|| window.webkitRequestAnimationFrame
@@ -27,37 +21,103 @@ window.requestAnimFrame = ( function() {
 		|| window.msRequestAnimationFrame
 		|| function(callback) { window.setTimeout(callback, 1000.0/60.0); }
 })();
+window.cancelRequestAnimFrame = ( function() {
+	return window.cancelAnimationFrame
+    	|| window.webkitCancelRequestAnimationFrame
+		|| window.mozCancelRequestAnimationFrame
+		|| window.oCancelRequestAnimationFrame
+		|| window.msCancelRequestAnimationFrame
+        || clearTimeout
+} )();
 
 
-function initializeGL(canvas)
+// OpenGL
+var gl;
+var glExtensions = [];
+
+// Evangelista framework
+var efw = efw || {};
+efw.application = function() {
+var self = this;
+
+// User configurations
+// ----------------------------------------------------------------------------------------------------
+this.configs = this.configs || {};
+this.configs.webGLDebugEnabled = false;
+this.configs.fpsCounterEnabled = false;
+this.configs.maxUpdateIterations = 3;
+this.configs.desiredElapsedTime = 32;
+
+// User attributes
+// ----------------------------------------------------------------------------------------------------
+this.inputs = this.inputs || {};
+this.inputs.mouse = this.inputs.mouse || {};
+this.inputs.mouse.isPressed = [false, false, false];
+this.inputs.mouse.position = [0, 0];
+this.inputs.mouse.positionDelta = [0, 0];
+this.inputs.mouse.wheelDelta = 0;
+this.fpsStats = { 'updateFps': 0, 'updateTimeMs': 0, 'drawFps': 0, 'drawTimeMs': 0 };
+
+// User defined methods
+// ----------------------------------------------------------------------------------------------------
+this.loadContent = null;
+this.initializeContent = null;
+this.update = null;
+this.draw = null;
+
+// General
+var gIsInitialized = false;
+
+// Canvas
+var gCanvas = null;
+
+// Events
+var gMouse = {};
+var gLastMouse = {};
+var gMouseWrite = {};
+gMouse.isPressed = [false, false, false];
+gMouse.position = [0, 0];
+gMouse.wheelDelta = 0;
+gLastMouse.isPressed = [false, false, false];
+gLastMouse.position = [0, 0];
+gLastMouse.wheelDelta = 0;
+gMouseWrite.isPressed = [false, false, false];
+gMouseWrite.position = [0, 0];
+gMouseWrite.wheelDelta = 0;
+
+// FPS Counter
+var gUpdateFps = 0;
+var gDrawFps = 0;
+var gUpdateTimeMs = 0;
+var gDrawTimeMs = 0;
+
+// Timer
+var gAnimationFrameRequest = null;
+var gPreviousTime = 0;
+var gElapsedTime = 0;
+
+var initializeWebGL = function()
 {
-	var loadingHud = document.getElementById("loading-hud");
-	var messageHud = document.getElementById("message-hud");
-
 	try {
-		gl = canvas.getContext("webgl")
-			|| canvas.getContext("experimental-webgl");
+		gl = gCanvas.getContext("webgl")
+			|| gCanvas.getContext("experimental-webgl");
 	} 
 	catch (e) {
-		loadingHud.style.color = "#CC0000";
-		loadingHud.innerHTML = "Your browser does not support WebGL!<br/>Please, try the latest version of Firefox, Chrome or Safari.";
+		return false;
 	}
 	
 	if (gl) {
-		gl = WebGLDebugUtils.makeDebugContext(gl);
-		var desiredWidth = (window.innerWidth+31) & ~31;
-		var desiredHeight = (window.innerHeight+31) & ~31;
-		canvas.width = desiredWidth;
-		canvas.height = desiredHeight;
-		gl.viewportWidth = canvas.width;
-		gl.viewportHeight = canvas.height;
-		//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
+		if (self.configs.webGLDebugEnabled && typeof WebGLDebugUtils != 'undefined')
+		{
+			gl = WebGLDebugUtils.makeDebugContext(gl);
+		}
+		self.resizeCanvas();
 		
 		// Grab available extensions
 		glExtensions.push( gl.getExtension("WEBGL_compressed_texture_s3tc") ||
 			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || 
 			gl.getExtension("MOZ_WEBGL_compressed_texture_s3tc") );
-		console.log(glExtensions);
+		//console.log(glExtensions);
 		
 		if (gl.compressedTexImage2D != null)
 		{
@@ -66,50 +126,184 @@ function initializeGL(canvas)
 			gl.COMPRESSED_RGBA_S3TC_DXT5_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT5_EXT;
 			gl.COMPRESSED_RGB_S3TC_DXT1_EXT = glExtensions[0].COMPRESSED_RGB_S3TC_DXT1_EXT;
 		}
-		else
-		{
-			messageHud.style.color = "yellow";
-			messageHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";
-		}
 	}
+	
+	return true;
 }
 
+var initialize = function()
+{	
+	// Add event listeners
+	gCanvas.addEventListener('mouseout', onMouseOut, false);
+	gCanvas.addEventListener('mousedown', function(e) { gMouseWrite.isPressed[e.button] = true; onMouseMove(e); mouseUpdate(); mouseUpdate(); /*console.log(e)*/ }, false);
+	gCanvas.addEventListener('mouseup', function(e) { gMouseWrite.isPressed[e.button] = false; /*console.log(e)*/ }, false);
+	gCanvas.addEventListener('mousemove', onMouseMove, false);
+	gCanvas.addEventListener('mousewheel', onMouseWheel, false);
+	gCanvas.addEventListener('DOMMouseScroll', onMouseWheelFirefox, false);
 
-efw.shaderHelper.compileShader = function(shaderSource, shaderType)
+	self.initializeContent();	
+	gIsInitialized = true;
+}
+
+var waitForAsyncContent = function(functionPtr)
 {
-	var shader = gl.createShader(shaderType);
-	if (!shader) return null;
-	
-	gl.shaderSource(shader, shaderSource);
-	gl.compileShader(shader);
-	
-	if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == false)
-	{
-		console.log("Shader source:\n" + shaderSource);
-		console.error("Error compiling shader:\n" + gl.getShaderInfoLog(shader));
-		
-		gl.deleteShader(shader);
-		shader = null;
-	}
-		
-	return shader;
+	if (gAsyncLoading == 0)
+		functionPtr();
+	else
+		setTimeout(function() { waitForAsyncContent(functionPtr); }, 2000);
 }
 
-
-efw.shaderHelper.linkShader = function(vertexShader, fragmentShader)
+var mainLoop = function()
 {
-	var program = gl.createProgram();
-	gl.attachShader(program, vertexShader);
-	gl.attachShader(program, fragmentShader);
-	gl.linkProgram(program);
+	gAnimationFrameRequest = requestAnimFrame(mainLoop);
+		
+	var currentTime = new Date().getTime();
+	gElapsedTime += currentTime - gPreviousTime;
+	gPreviousTime = currentTime;
+	//console.log(gElapsedTime);
 	
-	if (gl.getProgramParameter(program, gl.LINK_STATUS) == false)
-	{
-		console.error("Error linking shader programs: " + vertexShader + " and " + fragmentShader);
+	// Calculate required loop count
+	var requiredUpdateCount = Math.floor(gElapsedTime / self.configs.desiredElapsedTime);
+	var loopCount = Math.min( requiredUpdateCount, self.configs.maxUpdateIterations);
+	if (requiredUpdateCount > 0)
+		gElapsedTime = 0;
 
-		gl.deleteProgram(program);
-		program = null;
+	// Input handling
+	updateInput();
+
+	// Update
+    var updateStartTime = new Date().getTime();
+	for (var i=0; i < loopCount; i++)
+    {
+		self.update(self.configs.desiredElapsedTime*0.001);
+		gUpdateFps++;
+    }
+	gUpdateTimeMs += new Date().getTime() - updateStartTime;
+       
+    // Draw
+    var drawStartTime = new Date().getTime();
+    if (requiredUpdateCount >= 1 && requiredUpdateCount <= 2)
+    {
+		self.draw(self.configs.desiredElapsedTime*0.001);
+		gDrawFps++;
+	}
+	gDrawTimeMs += new Date().getTime() - drawStartTime;
+}
+
+var updateFps = function()
+{
+	setTimeout(updateFps, 1000);
+	if (self.configs.fpsCounterEnabled)
+	{
+		gUpdateFps = Math.max(gUpdateFps, 1);
+		gDrawFps = Math.max(gDrawFps, 1);
+		
+		self.fpsStats = { 'updateFps': gUpdateFps, 'updateTimeMs': (gUpdateTimeMs/gUpdateFps).toFixed(3),
+			'drawFps': gDrawFps, 'drawTimeMs': (gDrawTimeMs/gDrawFps).toFixed(3) };
+	
+		gUpdateFps = 0;
+		gDrawFps = 0;
+		gUpdateTimeMs = 0;
+		gDrawTimeMs = 0;
+	}
+}
+
+
+// Input handling
+// ------------------------------------------------------------------------------------------
+var updateInput = function() {
+	mouseUpdate();
+}
+var mouseUpdate = function() {
+	gLastMouse.isPressed = gMouse.isPressed;
+	gLastMouse.position = gMouse.position;
+	gLastMouse.wheelDelta = gMouse.wheelDelta;
+	
+	gMouse.isPressed = gMouseWrite.isPressed;
+	gMouse.position = gMouseWrite.position;
+	gMouse.wheelDelta = gMouseWrite.wheelDelta;
+	
+	// Clear write wheel delta
+	gMouseWrite.wheelDelta = 0;
+	
+	// Copy out
+	self.inputs.mouse.isPressed = gMouse.isPressed;
+	self.inputs.mouse.position = gMouse.position;
+	self.inputs.mouse.wheelDelta = gMouse.wheelDelta;
+
+	// Calculate current position delta
+	self.inputs.mouse.positionDelta = [ gMouse.position[0] - gLastMouse.position[0],
+		gMouse.position[1] - gLastMouse.position[1] ];
+
+}
+var onMouseOut = function(e) {
+	gMouseWrite.isPressed = [false, false, false];
+}
+var onMouseMove = function(e) {
+	gMouseWrite.position = [e.clientX, e.clientY];
+}
+var onMouseWheel = function(e) {
+	gMouseWrite.wheelDelta = e.wheelDelta;
+}
+var onMouseWheelFirefox = function(e) {
+	gMouseWrite.wheelDelta = e.detail*-40;
+}
+
+// Public visible methods
+// ------------------------------------------------------------------------------------------
+this.resizeCanvas = function()
+{
+	var desiredWidth = (window.innerWidth+31) & ~31;
+	var desiredHeight = (window.innerHeight+31) & ~31;
+	gCanvas.width = desiredWidth;
+	gCanvas.height = desiredHeight;
+	gl.viewportWidth = desiredWidth;
+	gl.viewportHeight = desiredHeight;
+	//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
+}
+
+this.start = function(canvas)
+{
+	if (typeof canvas == 'undefined' || canvas == null)
+		return false;
+	
+	if (typeof this.loadContent != 'function'
+		|| typeof this.initializeContent != 'function'
+		|| typeof this.update != 'function'
+		|| typeof this.draw != 'function' )
+	{
+		console.log('Error! You must implement the following methods:');
+		console.log('efw.application.loadContent\n');
+		console.log('efw.application.initializeContent\n');
+		console.log('efw.application.update\n');
+		console.log('efw.application.draw\n');
 	}
 	
-	return program;
+	gCanvas = canvas;
+	if (!initializeWebGL())
+		return false;
+
+	this.loadContent();	
+	waitForAsyncContent(initialize);
+	
+	return true;
 }
+
+this.run = function()
+{
+	// Wait for the initialization to finish
+	if (!gIsInitialized)
+	{
+		setTimeout(this.run, 2000);
+		return;
+	}
+	
+	// Start update fps
+	setTimeout(updateFps, 1000);
+	
+	// Start main loop
+	gPreviousTime = new Date().getTime();
+	gAnimationFrameRequest = requestAnimFrame(mainLoop);
+}
+
+} // application
