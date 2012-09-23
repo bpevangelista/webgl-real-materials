@@ -1,0 +1,76 @@
+body
+{
+	margin:0 0 0 0;
+	min-width:1100px;
+	min-height:620px;
+	overflow:hidden;
+}
+.background
+{
+	z-index:1;
+}
+.overlay
+{
+    z-index:1000;
+}
+.topmost
+{
+	z-index:1001;
+}
+.no-pointer
+{
+	pointer-events:none;
+}
+
+#fps-hud
+{
+	position:absolute;
+	left:100%;
+	top:5px;
+	font-size:12px; 
+	color:azure;
+	text-align:right;
+	margin-left:-135px;
+}
+#center-hud
+{
+	position:absolute;
+	left:0px;
+	top:40%;
+	width:100%;
+	text-align:center;
+	font-size:30px; 
+	color:azure;
+	text-shadow: black 0.12em 0.12em 0.18em;
+}
+#bottomleft-hud
+{
+	position:absolute;
+	left:10px;
+	top:100%;
+	width:100%;
+	font-size:30px; 
+	color:azure;
+	margin-top:-80px;
+}
+#signature-hud
+{
+	position:absolute;
+	left:100%;
+	top:100%;
+	font-weight:bold;
+	font-size:20px;
+	font-family:'Nothing You Could Do',cursive;
+	color:azure;
+	margin:-40px 0 0 -270px;
+}
+
+#webgl-canvas
+{
+	background-color:gray;
+	width:100%;
+	height:100%;
+	position:absolute;
+	left:0px;
+	top:0px;
+}
