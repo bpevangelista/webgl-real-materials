@@ -16,6 +16,9 @@ window.vec3 = efw.vec3;
 window.mat4 = efw.mat4;
 window.shaderHelper = efw.shaderHelper;
 
+var gApplication = new efw.application();
+gApplication.configs.webGLDebugEnabled = false;
+
 // Shaders
 //var gVS_Simple = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec2 aUv0; varying vec4 oColor; void main(void) { gl_Position = vec4(aPosition, 1.0); oColor = vec4(0,0,0,0); }';
 //var gFS_Simple = 'precision mediump float; varying vec4 oColor; void main(void) { gl_FragColor = oColor; }';
@@ -104,25 +107,14 @@ gCamera.eyePos = [-500.0, 700.0, 0.0];
 gCamera.lookAtVec = vec3.normalize([-1.0, 0.0, 0.0]);
 gCamera.upVec = [0.0, 1.0, 0.0];
 
-// Events
-var gMouse = {};
-var gLastMouse = {};
-var gMouseWrite = {};
-gMouse.isPressed = [false, false, false];
-gMouse.position = [0, 0];
-gMouse.wheelDelta = 0;
-gLastMouse.isPressed = [false, false, false];
-gLastMouse.position = [0, 0];
-gLastMouse.wheelDelta = 0;
-gMouseWrite.isPressed = [false, false, false];
-gMouseWrite.position = [0, 0];
-gMouseWrite.wheelDelta = 0;
+// Fade
+var gFadeItem = null;
+var gFadeDirection = 1;
+var gFadeAlpha = 1.0;
+var gFadeTimer = null;
 
-// Timer
-var gAnimationFrameRequest;
-var gPreviousTime = 0;
-var gElapsedTime = 0;
-
+// General
+var gIsFirstDraw = true;
 
 function loadFileAsync(fullFilePath, fileType, functionPtr)
 {
@@ -142,9 +134,65 @@ function loadFileAsync(fullFilePath, fileType, functionPtr)
 	xhr.send();
 }
 
-
-function loadContentAsync()
+function fadeUpdate()
 {
+	gFadeAlpha += (gFadeDirection>0)? 0.01 : -0.01;
+	gFadeItem.style.opacity = gFadeAlpha;
+	
+	if (gFadeAlpha <= 0)
+	{
+		clearInterval(gFadeTimer);
+		gFadeItem = null;
+		gFadeTimer = null;
+	}
+}
+function startFadeOut(item, startOpacity, fadeTime)
+{
+	if (gFadeTimer) clearInterval(gFadeTimer);
+
+	gFadeItem = item;
+	gFadeDirection = -1;
+	gFadeAlpha = startOpacity;
+	item.style.opacity = startOpacity;
+
+	gFadeTimer = setInterval(fadeUpdate, fadeTime/(100*gFadeAlpha));
+}
+function startFadeIn(item, startOpacity, fadeTime)
+{
+	if (gFadeTimer) clearInterval(gFadeTimer);
+		
+	gFadeItem = item;
+	gFadeDirection = 1;	
+	gFadeAlpha = startOpacity;
+	item.style.opacity = startOpacity;
+
+	gFadeTimer = setInterval(fadeUpdate, fadeTime/(100.0-100.0*gFadeAlpha));
+}
+
+function hideStartMessage() {
+	startFadeOut(gCenterHud, 1.0, 1000);
+}
+function showStartMessage() {
+	gCenterHud.innerHTML = 'Drag to look around<br/>Use the mouse buttons and wheel to navigate';
+	startFadeIn(gCenterHud, 0.0, 500);
+	
+	setTimeout(hideStartMessage, 5000);
+}
+
+function setDefaultRenderStates()
+{
+	gl.clearColor(122/255.0, 170/255.0, 255/255.0, 1.0);
+	gl.clearDepth(1.0);
+	gl.enable(gl.DEPTH_TEST);
+	
+	gl.enable(gl.CULL_FACE);
+	gl.cullFace(gl.FRONT);
+	
+	gl.activeTexture(gl.TEXTURE0);
+}
+
+gApplication.loadContent = function()
+{	
 	// Load meshes and shaders
 	loadFileAsync('assets/sponza-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
 	loadFileAsync('assets/sponza-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
@@ -160,21 +208,7 @@ function loadContentAsync()
 	}
 }
 
-
-function setDefaultRenderStates()
-{
-	gl.clearColor(122/255.0, 170/255.0, 255/255.0, 1.0);
-	gl.clearDepth(1.0);
-	gl.enable(gl.DEPTH_TEST);
-	
-	gl.enable(gl.CULL_FACE);
-	gl.cullFace(gl.FRONT);
-	
-	gl.activeTexture(gl.TEXTURE0);
-}
-
-
-function initializeContent()
+gApplication.initializeContent = function()
 {
 	setDefaultRenderStates();
 	
@@ -313,21 +347,17 @@ function initializeContent()
 	//console.log( matPerspective );
 	//console.log( matWVP );
 	//console.log( gUniformSamplerAlbedo );
+	
+	gApplication.configs.fpsCounterEnabled = true;
 }
 
 
-function update(elapsedTimeMillis)
+gApplication.update = function(elapsedTimeMillis)
 {
-	// TODO Everything needs to be scaled according to the bounding sphere radius of the object
-	var positionDelta = [
-		gMouse.position[0] - gLastMouse.position[0],
-		gMouse.position[1] - gLastMouse.position[1]
-	];
-
 	// Update camera
-	if (gMouse.isPressed[0])
+	if (this.inputs.mouse.isPressed[0])
 	{
-		var deltaX = positionDelta[0] * elapsedTimeMillis * 0.12;
+		var deltaX = this.inputs.mouse.positionDelta[0] * elapsedTimeMillis * 0.05;
 		var sinAngX = Math.sin(deltaX);
 		var cosAngX = Math.cos(deltaX);
 		
@@ -338,7 +368,7 @@ function update(elapsedTimeMillis)
 		gCamera.lookAtVec = vec3.normalize(gCamera.lookAtVec);
 		
 		// Rotate lookAtPosition around right vector
-		var deltaY = -positionDelta[1] * elapsedTimeMillis * 0.07;
+		var deltaY = -this.inputs.mouse.positionDelta[1] * elapsedTimeMillis * 0.07;
 		var sinAngY = Math.sin(deltaY);
 		var cosAngY = Math.cos(deltaY);
 		
@@ -361,9 +391,10 @@ function update(elapsedTimeMillis)
 		//cancelRequestAnimFrame(gAnimationFrameRequest);
 		//while(true) {}
 	}
-	if (gMouse.wheelDelta != 0)
+	if (this.inputs.mouse.wheelDelta != 0)
 	{
-		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, -gMouse.wheelDelta * elapsedTimeMillis * 7);
+		var scaleValue = -this.inputs.mouse.wheelDelta * elapsedTimeMillis * 7;
+		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, scaleValue);
 		gCamera.eyePos = vec3.add(gCamera.eyePos, scaledLookAtVec);
 	}
 	
@@ -382,8 +413,11 @@ function update(elapsedTimeMillis)
 }
 
 
-function draw(elapsedTimeMillis)
+gApplication.draw = function(elapsedTimeMillis)
 {
+	gFpsHud.innerHTML = 'Update Fps/Ms: ' + this.fpsStats.updateFps + '/' + this.fpsStats.updateTimeMs + 
+	'<br/>Draw Fps/Ms: ' + this.fpsStats.drawFps + '/' + this.fpsStats.drawTimeMs;
+	
 	gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -412,140 +446,12 @@ function draw(elapsedTimeMillis)
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshGL.indexBuffer);
 		gl.drawElements(gl.TRIANGLES, meshGL.indexCount, gl.UNSIGNED_SHORT, 0);
 	}
-}
-
-function updateMouse() {
-	gLastMouse.isPressed = gMouse.isPressed;
-	gLastMouse.position = gMouse.position;
-	gLastMouse.wheelDelta = gMouse.wheelDelta;
 	
-	gMouse.isPressed = gMouseWrite.isPressed;
-	gMouse.position = gMouseWrite.position;
-	gMouse.wheelDelta = gMouseWrite.wheelDelta;
-	
-	gMouseWrite.wheelDelta = 0;
-}
-function onMouseOut(e) {
-	gMouseWrite.isPressed = [false, false, false];
-}
-function onMouseMove(e) {
-	gMouseWrite.position = [e.clientX, e.clientY];
-}
-function onMouseWheel(e) {
-	gMouseWrite.wheelDelta = e.wheelDelta;
-}
-function onMouseWheelFirefox(e) {
-	gMouseWrite.wheelDelta = e.detail*-40;
-}
-
-function _waitForContent(functionPtr)
-{
-	if (gAsyncLoading == 0)
-		functionPtr();
-	else
-		setTimeout(function() { _waitForContent(functionPtr); }, 1000);
-}
-
-function applicationResize(canvas)
-{
-	var desiredWidth = (window.innerWidth+31) & ~31;
-	var desiredHeight = (window.innerHeight+31) & ~31;
-	canvas.width = desiredWidth;
-	canvas.height = desiredHright;
-	gl.viewportWidth = canvas.width;
-	gl.viewportHeight = canvas.height;
-	//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
-}
-
-function applicationStart(canvas)
-{
-	initializeGL(canvas);
-	loadContentAsync();
-	
-	//
-	canvas.addEventListener('mouseout', onMouseOut, false);
-	canvas.addEventListener('mousedown', function(e) { gMouseWrite.isPressed[e.button] = true; onMouseMove(e); updateMouse(); updateMouse(); /*console.log(e)*/ }, false);
-	canvas.addEventListener('mouseup', function(e) { gMouseWrite.isPressed[e.button] = false; /*console.log(e)*/ }, false);
-	canvas.addEventListener('mousemove', onMouseMove, false);
-	canvas.addEventListener('mousewheel', onMouseWheel, false);
-	canvas.addEventListener('DOMMouseScroll', onMouseWheelFirefox, false);
-	
-	_waitForContent(_initialize);
-}
-
-function _initialize()
-{
-	initializeContent();
-	
-	var loadingDiv = document.getElementById("loading-hud");			 
-	if (loadingDiv)
+	if (gIsFirstDraw)
 	{
-		loadingDiv.parentNode.removeChild(loadingDiv);
+		gIsFirstDraw = false;
+		showStartMessage();
 	}
-
-	// Must set gPreviousTime before main loop starts
-	gPreviousTime = new Date().getTime();
-	//setTimeout(showFPS, 1000.0);
-	requestAnimFrame(_mainLoop);
-}
-
-var gUpdateFps = 0;
-var gDrawFps = 0;
-function showFPS()
-{
-	return;
-	setTimeout(showFPS, 1000.0);
-
-	var canvas = document.getElementById("webgl-canvas");
-	var context = canvas.getContext("2d");
-	console.log(canvas);
-	console.log(context);
-	context.fillStyle = "Black";
-	context.font      = "normal 16pt Arial";
-	context.fillText(gUpdateFps + " " + gDrawFps + " update/draw fps", 10, 26);
-
-	gUpdateFps = 0;
-	gDrawFps = 0;
-}
-    
-function _mainLoop()
-{
-	gAnimationFrameRequest = requestAnimFrame(_mainLoop);
-	
-    var kMaxIterations = 3;
-    var kDesiredElapsedTime = 32;
-    var kInvDesiredElapsedTime = 1.0/kDesiredElapsedTime;
-
-	var currentTime = new Date().getTime();
-	//gElapsedTime += Math.max(currentTime - gPreviousTime, 0);
-	gElapsedTime += currentTime - gPreviousTime;
-	gPreviousTime = currentTime;
-	//console.log(gElapsedTime);
-	
-	// May update multiple times if many frames have passed
-	var requiredUpdateCount = Math.floor(gElapsedTime*kInvDesiredElapsedTime);
-	if (requiredUpdateCount > 0)
-		gElapsedTime = 0;
-
-	//console.time("update-all")
-	var loopCount = Math.min( requiredUpdateCount, kMaxIterations);
-	for (var i=0; i < loopCount; i++)
-    {
-		updateMouse();
-
-    	//console.time("update")
-		update(kDesiredElapsedTime*0.001);
-		//console.timeEnd("update");
-		gUpdateFps++;
-    }
-    //console.timeEnd("update-all");
-       
-    // Only render if the scene was updated and we are not more than 8 frames behind
-    if (requiredUpdateCount >= 1 && requiredUpdateCount <= 2)
-    {
-    	//console.time("draw");
-		draw(kDesiredElapsedTime*0.001);
-		//console.timeEnd("draw");
-		gDrawFps++;
-	}
+	// Enable to have a better idea of the rendering cost
+	//gl.finish();
 }
