@@ -109,6 +109,7 @@ var initializeWebGL = function()
 	if (gl) {
 		if (self.configs.webGLDebugEnabled && typeof WebGLDebugUtils != 'undefined')
 		{
+			console.log("*** WebGLDebugUtils is enabled");
 			gl = WebGLDebugUtils.makeDebugContext(gl);
 		}
 		self.resizeCanvas();
@@ -294,7 +295,7 @@ this.run = function()
 	// Wait for the initialization to finish
 	if (!gIsInitialized)
 	{
-		setTimeout(this.run, 2000);
+		setTimeout(self.run, 2000);
 		return;
 	}
 	
