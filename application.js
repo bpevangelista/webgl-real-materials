@@ -36,6 +36,11 @@ var gVS_Basic =
 +"varying vec3 oWorldPosition;"
 +"varying vec3 oWorldNormalVec;"
 +"varying vec2 oUv0;"
++''
++'\n#ifdef MIP_OVERLAY\n'
++'varying vec2 oUvD;\n'
++'#endif\n'
++''
 +""
 +"void main()"
 +"{"
@@ -49,8 +54,9 @@ var gVS_Basic =
 +"}"
 +"";
 
-var gVS_Compressed = 
-"uniform mat4 gMatW;"
+var gVS_Compressed =
+"precision mediump float;" 
++"uniform mat4 gMatW;"
 +"uniform mat3 gMatWIT;"
 +"uniform mat4 gMatWVP;"
 +""
@@ -72,7 +78,96 @@ var gVS_Compressed =
 +"	position = position * gPositionScale + gPositionBias;\n"
 +"	oWorldPosition = (position * gMatW).xyz;\n"
 +""
-+"	vec3 normal = (aNormal - vec3(0.5)) * vec3(2.0);\n" 
++"	vec3 normal = aNormal * vec3(2.0) - vec3(1.0);\n" 
++"	oWorldNormalVec = normal * gMatWIT;\n"
++""
++"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
++"	gl_Position = position * gMatWVP;\n"
++"}"
++"";
+
+var gVS_CompressedAzimuthal =
+"precision mediump float;" 
++"uniform mat4 gMatW;"
++"uniform mat3 gMatWIT;"
++"uniform mat4 gMatWVP;"
++""
++"uniform vec4 gPositionScale;"
++"uniform vec4 gPositionBias;"
++"uniform vec4 gUvScaleBias;"
++""
++"attribute vec3 aPosition;"
++"attribute vec2 aNormal;"
++"attribute vec2 aUv0;"
++""
++"varying vec3 oWorldPosition;"
++"varying vec3 oWorldNormalVec;"
++"varying vec2 oUv0;"
++""
++"void main()"
++"{"
++"	vec4 position = vec4(aPosition, 1.0);\n"
++"	position = position * gPositionScale + gPositionBias;\n"
++"	oWorldPosition = (position * gMatW).xyz;\n"
++""
++"	vec2 enc = aNormal * vec2(4.0) - vec2(2.0);\n"
++"	float dotEnc = dot(enc,enc);\n"
++"	vec3 normal;\n"
++"	normal.xy = enc * vec2( sqrt(1.0 - dotEnc * 0.25) );\n"
++"	normal.z = 1.0 - dotEnc * 0.5;\n"
++"	oWorldNormalVec = normal * gMatWIT;\n"
++""
++"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
++"	gl_Position = position * gMatWVP;\n"
++"}"
++"";
+
+var gVS_CompressedSphereMap =
+"precision mediump float;" 
++"uniform mat4 gMatW;"
++"uniform mat3 gMatWIT;"
++"uniform mat4 gMatWVP;"
++""
++"uniform vec4 gPositionScale;"
++"uniform vec4 gPositionBias;"
++"uniform vec4 gUvScaleBias;"
++""
++"attribute vec3 aPosition;"
++"attribute vec2 aNormal;"
++"attribute vec2 aUv0;"
++""
++"varying vec3 oWorldPosition;"
++"varying vec3 oWorldNormalVec;"
++"varying vec2 oUv0;"
++""
++"void main()"
++"{"
++"	vec4 position = vec4(aPosition, 1.0);\n"
++"	position = position * gPositionScale + gPositionBias;\n"
++"	oWorldPosition = (position * gMatW).xyz;\n"
++""
+
++"	vec2 enc = aNormal * vec2(2.0) - vec2(1.0);\n"
++"	vec3 normal;\n"
+//+"	normal.z = dot(enc, enc);\n"
+//+"	float zcomma = dot(enc, enc);\n"
++"	normal.z = dot(enc, enc) * 2.0 - 1.0;\n"
+//+"	float l = sqrt(1.0 - normal.z*normal.z) / sqrt(zcomma);\n"
++"	float l = sqrt(1.0 - normal.z*normal.z);\n"
++"	normal.xy = normalize(enc) * l;\n"
+//+"	normal.xy = enc * 1.0/sqrt(zcomma) * l;\n"
++""
+//+"	normal.z = normal.z * 2.0 - 1.0\n"
+
+/*
++""
++"vec4 nn = vec4(aNormal.x, aNormal.y, 0.0, 0.0) * vec4(2.0,2.0,0.0,0.0) + vec4(-1.0,-1.0,1.0,-1.0);\n"
++"float l = dot(nn.xyz,-nn.xyw);\n"
++"nn.z = l;\n"
++"nn.xy *= sqrt(l);\n"
++"vec3 normal = nn.xyz * vec3(2.0) + vec3(0,0,-1);\n"
+*/  
++""
 +"	oWorldNormalVec = normal * gMatWIT;\n"
 +""
 +"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
@@ -84,7 +179,8 @@ var gFS_Phong =
 "precision mediump float;"
 +"uniform sampler2D gSamplerAlbedo;"
 +"uniform vec3 gWorldEyePosition;"
-+"uniform vec3 gWorldLight0Position;"
++"uniform vec3 gLight0WorldPosition;"
++"uniform vec3 gLight0Color;"
 +""
 +"varying vec3 oWorldPosition;"
 +"varying vec3 oWorldNormalVec;"
@@ -95,7 +191,7 @@ var gFS_Phong =
 +"  vec3 worldPosition = oWorldPosition;\n"
 +"	vec3 worldNormalVec = normalize(oWorldNormalVec);\n"
 +"	vec3 worldEyeVec = normalize(gWorldEyePosition - worldPosition);\n"
-+"	vec3 worldLight0Vec = normalize(gWorldLight0Position - worldPosition);\n"
++"	vec3 worldLight0Vec = normalize(gLight0WorldPosition - worldPosition);\n"
 +"	vec3 halfLightEyeVec = normalize(worldEyeVec + worldLight0Vec);\n"
 +""	   
 +"	float lightAttnCoeff = max(dot(worldNormalVec, worldLight0Vec), 0.0);\n"
@@ -103,15 +199,15 @@ var gFS_Phong =
 //+"	vec4 surfaceColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 +"	vec4 surfaceColor = texture2D(gSamplerAlbedo, oUv0);"
 //+"	float temp = surfaceColor.r; surfaceColor.r = surfaceColor.b; surfaceColor.b = temp;"
-+"	vec4 lightColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
 +""
 +"		lightAttnCoeff *= (0.7 + 0.7 * pow(specularIntensity, 12.0));"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor + lightColor * lightAttnCoeff * specularIntensity;"
 //+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor;"
 //+"	lightAttnCoeff = max(lightAttnCoeff + lightAttnCoeff*pow(specularIntensity, 8.0), 0.05);"
 //
-+"	gl_FragColor = surfaceColor * vec4(0.05 + lightAttnCoeff, 0.05+lightAttnCoeff, 0.05+lightAttnCoeff, 1);"
-//+"	gl_FragColor = vec4(0.05 + lightAttnCoeff, 0.05+lightAttnCoeff, 0.05+lightAttnCoeff, 1);"
+//+"	gl_FragColor = surfaceColor * vec4(gLight0Color * vec3(lightAttnCoeff) + vec3(0.05), 1);"
++"	gl_FragColor = vec4(0.05 + lightAttnCoeff, 0.05+lightAttnCoeff, 0.05+lightAttnCoeff, 1);"
+//+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
 //+"	worldNormalVec = worldNormalVec * 0.5 + vec3(0.5);"
 +""
 //+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
@@ -121,23 +217,78 @@ var gFS_Phong =
 
 // Application
 var gApplication = new efw.application();
-gApplication.configs.webGLDebugEnabled = true;
-var gUseCompressedModel = true;
+gApplication.configs.webGLDebugEnabled = false;
+
 
 // Available mesh vertex data types
-var gMeshVertexTypes;
+var gMeshVertexTypes = [{
+	// Float components: position.xyz, normal.xyz, uv0.xy
+	vstride:32,
+	vattrib:[
+		{type:0x1406/*gl.FLOAT*/,count:3,offset:0,normalized:false},
+		{type:0x1406/*gl.FLOAT*/,count:3,offset:12,normalized:false},
+		{type:0x1406/*gl.FLOAT*/,count:2,offset:24,normalized:false}
+		]
+	},
+	{
+	// uint16_t components: position.xyz, normal.xyz, uv0.xy
+	vstride:16,
+	vattrib:[
+		{type:0x1403/*UNSIGNED_SHORT*/,count:3,offset:0,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:3,offset:6,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:2,offset:12,normalized:true}
+		]
+	},
+	{
+	// uint16_t components: position.xyz, compressed_normal.xy, uv0.xy
+	vstride:14,
+	vattrib:[
+		{type:0x1403/*UNSIGNED_SHORT*/,count:3,offset:0,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:2,offset:6,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:2,offset:10,normalized:true}
+		]
+	},
+	
+	// Temporary new encoding
+	{
+	// uint16_t components: position.xyz, compressed_normal.xy, uv0.xy
+	vstride:14,
+	vattrib:[
+		{type:0x1403/*UNSIGNED_SHORT*/,count:3,offset:0,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:2,offset:6,normalized:true},
+		{type:0x1403/*UNSIGNED_SHORT*/,count:2,offset:10,normalized:true}
+		]
+	}
+	 ];
+
+var gTextureFormats = {
+	kUnknown:0,
+	kL8:1,
+	kRGB:2,
+	kRGBA:3,
+	kABGR:4,
+	kDXT1:5,
+	kDXT3:6,
+	kDXT5:7
+};
+
+// 
+var gUseMeshCompressionType = 2; // 0 = None, 1 = 16b attributes, 2 = Azimuthal normals, 3 = SphereMap normals
+var gUseMaterialTextureFormat = 5; // 0 = None, 5 = DXT1
+var gUseMipMapOverlay = true;
 
 // Content
-var jsonBinaryResource = function() {
+var JsonBinaryResource = function() {
 	this.description = null;
 	this.data = null;
 } 
 
 // Buffers
-var gProgramBasicPhong, gProgramCompressedPhong;
+var gPrograms = [];
 var gUniformMatW, gUniformMatWIT, gUniformMatWVP;
 var gUniformPositionScale, gUniformPositionBias, gUniformUvScaleBias;
-var gUniformEyePos, gUniformLight0Pos;
+var gUniformEyePos;
+var gUniformLight0Pos, gUniformLight0Color;
 var gUniformSamplerAlbedo;
 var gAttr0, gAttr1, gAttr2;
 
@@ -153,7 +304,8 @@ var gMaterialsGL = [];
 
 // Camera and Light
 //var gLightPosition = [1000, -10000, 500];
-var gLightPosition = [0.0, 1400.0, 0.0];
+var gLight0Position = new Float32Array([0.0, 1400.0, 0.0]);
+var gLight0Color = new Float32Array([1.0, 1.0, 1.0]);
 var gCamera = {};
 gCamera.eyePos = [-500.0, 700.0, 0.0];
 gCamera.lookAtVec = vec3.normalize([-1.0, 0.0, 0.0]);
@@ -259,29 +411,13 @@ gApplication.loadJsonBinaryResource = function(outJsonBinary, jsonFilename, bina
 
 gApplication.loadContent = function()
 {
-	// Mesh types
-	gMeshVertexTypes = [{
-		vstride:32,
-		vattrib:[
-			{type:gl.FLOAT,count:3,offset:0,normalized:false},
-			{type:gl.FLOAT,count:3,offset:12,normalized:false},
-			{type:gl.FLOAT,count:2,offset:24,normalized:false}
-			]
-		},
-		{
-		vstride:16,
-		vattrib:[
-			{type:gl.UNSIGNED_SHORT,count:3,offset:0,normalized:true},
-			{type:gl.UNSIGNED_SHORT,count:3,offset:6,normalized:true},
-			{type:gl.UNSIGNED_SHORT,count:2,offset:12,normalized:true}
-			]
-		}];
-
-	if (gUseCompressedModel)
+	// Compressed types
+	if (gUseMeshCompressionType != 0)
 	{
-		gMeshesGLVertexType = gMeshVertexTypes[1]; 
-		loadFileAsync('assets/sponza-compressed-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
-		loadFileAsync('assets/sponza-compressed-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
+		console.log("Using compressed meshes.");
+		gMeshesGLVertexType = gMeshVertexTypes[gUseMeshCompressionType];
+		loadFileAsync('assets/sponza-compressed' + gUseMeshCompressionType + '-meshes.evb', 'arraybuffer', function(data) { gMeshesRawData = data; } );
+		loadFileAsync('assets/sponza-compressed' + gUseMeshCompressionType + '-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
 	}
 	else
 	{
@@ -290,16 +426,60 @@ gApplication.loadContent = function()
 		loadFileAsync('assets/sponza-meshes.evd', 'text', function(data) { gMeshes = JSON.parse(data); } );
 	}
 	
-	if (gl.compressedTexImage2D)
+	if (gl.compressedTexImage2D && gUseMaterialTextureFormat == gTextureFormats.kDXT1)
 	{
-		loadFileAsync('assets/sponza-compressed_materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
-		loadFileAsync('assets/sponza-compressed_materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
+		console.log("Using compressed textures.");
+		loadFileAsync('assets/sponza-compressed-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
+		loadFileAsync('assets/sponza-compressed-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
 	}
 	else
 	{
 		loadFileAsync('assets/sponza-materials.evd', 'text', function(data) { gMaterials = JSON.parse(data); } );
 		loadFileAsync('assets/sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
 	}
+	
+	/*
+	if (gUseCompressedModel)
+	{
+		loadJsonBinaryResource(gSponzaModel, 'assets/sponza-compressed-meshes.evd', 'assets/sponza-compressed-meshes.evb');
+		gSponzaModel.vertexType = gMeshVertexTypes[1];
+	}
+	else
+	{
+		loadJsonBinaryResource(gSponzaModel, 'assets/sponza-meshes.evd', 'assets/sponza-meshes.evb');
+		gSponzaModel.vertexType = gMeshVertexTypes[0];
+	}
+	
+	if (gl.compressedTexImage2D)
+	{
+		loadJsonBinaryResource(gSponzaMaterialLib, 'assets/sponza-compressed-materials.evd', 'assets/sponza-compressed-materials.evb');
+	}
+	else
+	{
+		loadJsonBinaryResource(gSponzaMaterialLib, 'assets/sponza-materials.evd', 'assets/sponza-materials.evb');
+	}
+	*/
+}
+
+function lightFadeIn()
+{
+
+}
+function startRandomizeLight()
+{
+	var nextTime = 100 + Math.random() * 0.5 * 1000;
+	
+	var intensityDelta = (Math.random() - 0.5) * 0.1;
+	var newLight0Color = gLight0Color;
+	newLight0Color[0] = (newLight0Color[0] + intensityDelta);
+	newLight0Color[1] = (newLight0Color[1] + intensityDelta);
+	newLight0Color[2] = (newLight0Color[2] + intensityDelta);
+	newLight0Color[0] = Math.max(Math.min(newLight0Color[0], 1.0), 0.0);
+	newLight0Color[1] = Math.max(Math.min(newLight0Color[1], 1.0), 0.0);
+	newLight0Color[2] = Math.max(Math.min(newLight0Color[2], 1.0), 0.0);
+	
+	//gLight0Color = newLight0Color;
+	setTimeout(function() { gLight0Color = newLight0Color; startRandomizeLight(); }, nextTime);
 }
 
 gApplication.initializeContent = function()
@@ -328,35 +508,37 @@ gApplication.initializeContent = function()
 		var textureBuffer = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
 		
-		if (gl.compressedTexImage2D != null)
+		var width = albedoTexture.width;
+		var height = albedoTexture.height;
+		
+		for (var j=0; j<albedoTexture.mipCount; ++j)
 		{
-			var width = albedoTexture.width;
-			var height = albedoTexture.height;
-			var totalLayerSize = 0;
-			
-			for (var j=0; j<albedoTexture.mipCount; ++j)
+			//dataIndex = ((dataIndex + 7) & ~7);
+
+			if (albedoTexture.format == gTextureFormats.kDXT1)
 			{
 				var layerSize = Math.max(1, Math.floor((width+3)/4)) * Math.max(1, Math.floor((height+3)/4)) * 8;
-				totalLayerSize += layerSize;
-				
-				//dataIndex = ((dataIndex + 7) & ~7);
 				var mipTextureData = new Uint8Array(gMaterialsRawData, dataIndex, layerSize);
-				dataIndex += layerSize;
-			
-				gl.compressedTexImage2D(gl.TEXTURE_2D, j, gl.COMPRESSED_RGBA_S3TC_DXT1_EXT, Math.max(1, width), Math.max(1, height), 0, mipTextureData);
-				width >>= 1;
-				height >>= 1;
+
+				gl.compressedTexImage2D(gl.TEXTURE_2D, j, gl.COMPRESSED_RGBA_S3TC_DXT1_EXT, Math.max(1, width), Math.max(1, height), 0 /*border*/, mipTextureData);
 			}
+			else if (albedoTexture.format == gTextureFormats.kRGBA)
+			{
+				var layerSize = Math.max(1, width) * Math.max(1, height) * 4;
+				var mipTextureData = new Uint8Array(gMaterialsRawData, dataIndex, layerSize);
+
+				gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+				gl.texImage2D(gl.TEXTURE_2D, j, gl.RGBA, Math.max(1, width), Math.max(1, height), 0 /*border*/, gl.RGBA, gl.UNSIGNED_BYTE, mipTextureData);
+			}
+
+			dataIndex += layerSize;
+			width >>= 1;
+			height >>= 1;
 		}
-		else
+		
+		// If the texture is not compressed and has only one mip level we should generate the full mip chain
+		if (albedoTexture.format == gTextureFormats.kRGBA && albedoTexture.mipCount == 1)
 		{
-			//dataIndex = ((dataIndex + 3) & ~3);
-			var textureData = new Uint8Array(gMaterialsRawData, dataIndex, textureSize);
-			dataIndex += textureSize;
-			
-			gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, albedoTexture.width, albedoTexture.height, 0, gl.RGBA, 
-				gl.UNSIGNED_BYTE, textureData);
 			gl.generateMipmap(gl.TEXTURE_2D);
 		}
 		
@@ -366,7 +548,7 @@ gApplication.initializeContent = function()
     	
 		if (dataIndex > gMaterialsRawData.byteLength)
 		{
-			console.log("Materials description file or binary file are corrupted!");
+			console.log("Materials description file or binary file is corrupted!");
 		}
 
    	}
@@ -410,7 +592,7 @@ gApplication.initializeContent = function()
 		var positionScaleArray = null;
 		var positionBiasArray = null;
 		var uvScaleBiasArray = null;
-		if (gUseCompressedModel)
+		if (gUseMeshCompressionType != 0)
 		{
 			positionScaleArray = new Float32Array([mesh.posCustom[0], mesh.posCustom[1], mesh.posCustom[2], 1]);
 			positionBiasArray = new Float32Array([mesh.posCustom[3], mesh.posCustom[4], mesh.posCustom[5], 0]);
@@ -426,29 +608,26 @@ gApplication.initializeContent = function()
 	
 	var vsBasic = shaderHelper.compileShader(gVS_Basic, gl.VERTEX_SHADER);
 	var vsCompressed = shaderHelper.compileShader(gVS_Compressed, gl.VERTEX_SHADER);
+	var vsCompressedAzimuthal = shaderHelper.compileShader(gVS_CompressedAzimuthal, gl.VERTEX_SHADER);
+	var vsCompressedSpheremap = shaderHelper.compileShader(gVS_CompressedSphereMap, gl.VERTEX_SHADER);
 	var fsPhong = shaderHelper.compileShader(gFS_Phong, gl.FRAGMENT_SHADER);
-	gProgramBasicPhong = shaderHelper.linkShader(vsBasic, fsPhong);
-	gProgramCompressedPhong = shaderHelper.linkShader(vsCompressed, fsPhong);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsBasic, fsPhong);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressed, fsPhong);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressedAzimuthal, fsPhong);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressedSpheremap, fsPhong);
 	
-	var selectedProgram = null;
-	if (gUseCompressedModel)
-	{
-		selectedProgram = gProgramCompressedPhong;
-	}
-	else
-	{
-		selectedProgram = gProgramBasicPhong;
-	}
+	var selectedProgram = gPrograms[gUseMeshCompressionType];
 	gl.useProgram(selectedProgram);
 	
 	gUniformMatW = gl.getUniformLocation(selectedProgram, "gMatW");
 	gUniformMatWIT = gl.getUniformLocation(selectedProgram, "gMatWIT");
 	gUniformMatWVP = gl.getUniformLocation(selectedProgram, "gMatWVP");
 	gUniformEyePos = gl.getUniformLocation(selectedProgram, "gWorldEyePosition");
-	gUniformLight0Pos = gl.getUniformLocation(selectedProgram, "gWorldLight0Position");
+	gUniformLight0Pos = gl.getUniformLocation(selectedProgram, "gLight0WorldPosition");
+	gUniformLight0Color = gl.getUniformLocation(selectedProgram, "gLight0Color");
 	gUniformSamplerAlbedo = gl.getUniformLocation(selectedProgram, "gSamplerAlbedo");
 		
-	if (gUseCompressedModel)
+	if (gUseMeshCompressionType != 0)
 	{
 		gUniformPositionBias = gl.getUniformLocation(selectedProgram, "gPositionBias");
 		gUniformPositionScale = gl.getUniformLocation(selectedProgram, "gPositionScale");
@@ -531,8 +710,11 @@ gApplication.update = function(elapsedTimeMillis)
 	gl.uniformMatrix4fv(gUniformMatW, false, new Float32Array(matWorld));
 	gl.uniformMatrix3fv(gUniformMatWIT, false, new Float32Array( mat4.upper3x3(matWorldIT) ));
 	gl.uniformMatrix4fv(gUniformMatWVP, false, new Float32Array(matWVP));
-	gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePos) );
-	gl.uniform3fv(gUniformLight0Pos, new Float32Array(gLightPosition) );
+	gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePos));
+	gl.uniform3fv(gUniformLight0Pos, gLight0Position);
+	
+	//startRandomizeLight();
+	gl.uniform3fv(gUniformLight0Color, gLight0Color);
 }
 
 
@@ -557,7 +739,7 @@ gApplication.draw = function(elapsedTimeMillis)
         	gl.uniform1i(gUniformSamplerAlbedo, 0);
 		}
 
-		if (gUseCompressedModel)
+		if (gUseMeshCompressionType != 0)
 		{
 			gl.uniform4fv(gUniformPositionScale, meshGL.posScale);
 			gl.uniform4fv(gUniformPositionBias, meshGL.posBias);
