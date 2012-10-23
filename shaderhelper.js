@@ -14,6 +14,13 @@
 var efw = efw || {};
 efw.shaderHelper = efw.shaderHelper || {};
 
+efw.shaderHelper.compileShaderEntryPoint = function(shaderSource, shaderType, entryPointStr)
+{
+	var shaderSourceCopy = '#define ' + entryPointStr + 'main\n';
+	return compileShader(shaderSourceCopy, shaderType);
+}
+
+
 efw.shaderHelper.compileShader = function(shaderSource, shaderType)
 {
 	var shader = gl.createShader(shaderType);
