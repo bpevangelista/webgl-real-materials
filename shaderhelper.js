@@ -14,10 +14,43 @@
 var efw = efw || {};
 efw.shaderHelper = efw.shaderHelper || {};
 
-efw.shaderHelper.compileShaderEntryPoint = function(shaderSource, shaderType, entryPointStr)
+efw.shaderHelper.parseDefines = function(defines)
 {
-	var shaderSourceCopy = '#define ' + entryPointStr + 'main\n';
-	return compileShader(shaderSourceCopy, shaderType);
+	// Defines are split with spaces
+	var listDefines = defines.split(' ');
+	var result = '';
+	
+	for (var i=0; i<listDefines.length; i++)
+	{
+		if (listDefines[i].length > 2 && listDefines[i].substring(0, 2) == '-D')
+		{
+			var keyAndValue = listDefines[i].split('=');
+						 
+			if (keyAndValue.length == 1)
+			{
+				result += '#define ' + keyAndValue[0].substring(2) + '\r\n';
+			}
+			else if (keyAndValue.length == 2)
+			{
+				result += '#define ' + keyAndValue[0].substring(2) + ' ' + keyAndValue[1] + '\r\n';
+			}
+			else
+			{
+				// Invalid
+				console.log("Invalid parsing!");
+			}
+		}
+	}
+	result += '\r\n';
+	
+	//console.log(result);
+	return result;
+}
+
+efw.shaderHelper.compileShaderWithDefines = function(shaderSource, shaderType, defines)
+{
+	var shaderSourceCopy = this.parseDefines(defines) + shaderSource;
+	return this.compileShader(shaderSourceCopy, shaderType);
 }
 
 
@@ -31,7 +64,11 @@ efw.shaderHelper.compileShader = function(shaderSource, shaderType)
 	
 	if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == false)
 	{
-		console.log("Shader source:\n" + shaderSource);
+		var lines = shaderSource.split(/[\r][\n]/);
+		for (var i=0; i<lines.length; i++)
+			lines[i] = '' + (i+1) + ': ' + lines[i];
+			
+		console.log("Shader source:\n" + lines.join('\r\n'));
 		console.error("Error compiling shader:\n" + gl.getShaderInfoLog(shader));
 		
 		gl.deleteShader(shader);
