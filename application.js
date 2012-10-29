@@ -16,204 +16,6 @@ window.vec3 = efw.vec3;
 window.mat4 = efw.mat4;
 window.shaderHelper = efw.shaderHelper;
 
-// Shaders
-//var gVS_Simple = "attribute vec3 aPosition; attribute vec3 aNormal; attribute vec2 aUv0; varying vec4 oColor; void main(void) { gl_Position = vec4(aPosition, 1.0); oColor = vec4(0,0,0,0); }';
-//var gFS_Simple = 'precision mediump float; varying vec4 oColor; void main(void) { gl_FragColor = oColor; }';
-
-var gVS_Basic = 
-"uniform mat4 gMatW;"
-+"uniform mat3 gMatWIT;"
-+"uniform mat4 gMatWVP;"
-+""
-+"uniform vec4 gPositionScale;"
-+"uniform vec4 gPositionBias;"
-+"uniform vec4 gUvScaleBias;"
-+""
-+"attribute vec3 aPosition;"
-+"attribute vec3 aNormal;"
-+"attribute vec2 aUv0;"
-+""
-+"varying vec3 oWorldPosition;"
-+"varying vec3 oWorldNormalVec;"
-+"varying vec2 oUv0;"
-+''
-+'\n#ifdef MIP_OVERLAY\n'
-+'varying vec2 oUvD;\n'
-+'#endif\n'
-+''
-+""
-+"void main()"
-+"{"
-+"	vec4 position = vec4(aPosition, 1.0);\n"
-+"	oWorldPosition = (position * gMatW).xyz;\n"
-+""
-+"	oWorldNormalVec = aNormal * gMatWIT;\n"
-+"	oUv0 = aUv0;\n"
-+""
-+"	gl_Position = position * gMatWVP;\n"
-+"}"
-+"";
-
-var gVS_Compressed =
-"precision mediump float;" 
-+"uniform mat4 gMatW;"
-+"uniform mat3 gMatWIT;"
-+"uniform mat4 gMatWVP;"
-+""
-+"uniform vec4 gPositionScale;"
-+"uniform vec4 gPositionBias;"
-+"uniform vec4 gUvScaleBias;"
-+""
-+"attribute vec3 aPosition;"
-+"attribute vec3 aNormal;"
-+"attribute vec2 aUv0;"
-+""
-+"varying vec3 oWorldPosition;"
-+"varying vec3 oWorldNormalVec;"
-+"varying vec2 oUv0;"
-+""
-+"void main()"
-+"{"
-+"	vec4 position = vec4(aPosition, 1.0);\n"
-+"	position = position * gPositionScale + gPositionBias;\n"
-+"	oWorldPosition = (position * gMatW).xyz;\n"
-+""
-+"	vec3 normal = aNormal * vec3(2.0) - vec3(1.0);\n" 
-+"	oWorldNormalVec = normal * gMatWIT;\n"
-+""
-+"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
-+"	gl_Position = position * gMatWVP;\n"
-+"}"
-+"";
-
-var gVS_CompressedAzimuthal =
-"precision mediump float;" 
-+"uniform mat4 gMatW;"
-+"uniform mat3 gMatWIT;"
-+"uniform mat4 gMatWVP;"
-+""
-+"uniform vec4 gPositionScale;"
-+"uniform vec4 gPositionBias;"
-+"uniform vec4 gUvScaleBias;"
-+""
-+"attribute vec3 aPosition;"
-+"attribute vec2 aNormal;"
-+"attribute vec2 aUv0;"
-+""
-+"varying vec3 oWorldPosition;"
-+"varying vec3 oWorldNormalVec;"
-+"varying vec2 oUv0;"
-+""
-+"void main()"
-+"{"
-+"	vec4 position = vec4(aPosition, 1.0);\n"
-+"	position = position * gPositionScale + gPositionBias;\n"
-+"	oWorldPosition = (position * gMatW).xyz;\n"
-+""
-+"	vec2 enc = aNormal * vec2(4.0) - vec2(2.0);\n"
-+"	float dotEnc = dot(enc,enc);\n"
-+"	vec3 normal;\n"
-+"	normal.xy = enc * vec2( sqrt(1.0 - dotEnc * 0.25) );\n"
-+"	normal.z = 1.0 - dotEnc * 0.5;\n"
-+"	oWorldNormalVec = normal * gMatWIT;\n"
-+""
-+"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
-+"	gl_Position = position * gMatWVP;\n"
-+"}"
-+"";
-
-var gVS_CompressedSphereMap =
-"precision mediump float;" 
-+"uniform mat4 gMatW;"
-+"uniform mat3 gMatWIT;"
-+"uniform mat4 gMatWVP;"
-+""
-+"uniform vec4 gPositionScale;"
-+"uniform vec4 gPositionBias;"
-+"uniform vec4 gUvScaleBias;"
-+""
-+"attribute vec3 aPosition;"
-+"attribute vec2 aNormal;"
-+"attribute vec2 aUv0;"
-+""
-+"varying vec3 oWorldPosition;"
-+"varying vec3 oWorldNormalVec;"
-+"varying vec2 oUv0;"
-+""
-+"void main()"
-+"{"
-+"	vec4 position = vec4(aPosition, 1.0);\n"
-+"	position = position * gPositionScale + gPositionBias;\n"
-+"	oWorldPosition = (position * gMatW).xyz;\n"
-+""
-
-+"	vec2 enc = aNormal * vec2(2.0) - vec2(1.0);\n"
-+"	vec3 normal;\n"
-//+"	normal.z = dot(enc, enc);\n"
-//+"	float zcomma = dot(enc, enc);\n"
-+"	normal.z = dot(enc, enc) * 2.0 - 1.0;\n"
-//+"	float l = sqrt(1.0 - normal.z*normal.z) / sqrt(zcomma);\n"
-+"	float l = sqrt(1.0 - normal.z*normal.z);\n"
-+"	normal.xy = normalize(enc) * l;\n"
-//+"	normal.xy = enc * 1.0/sqrt(zcomma) * l;\n"
-+""
-//+"	normal.z = normal.z * 2.0 - 1.0\n"
-
-/*
-+""
-+"vec4 nn = vec4(aNormal.x, aNormal.y, 0.0, 0.0) * vec4(2.0,2.0,0.0,0.0) + vec4(-1.0,-1.0,1.0,-1.0);\n"
-+"float l = dot(nn.xyz,-nn.xyw);\n"
-+"nn.z = l;\n"
-+"nn.xy *= sqrt(l);\n"
-+"vec3 normal = nn.xyz * vec3(2.0) + vec3(0,0,-1);\n"
-*/  
-+""
-+"	oWorldNormalVec = normal * gMatWIT;\n"
-+""
-+"	oUv0 = aUv0 * gUvScaleBias.xy + gUvScaleBias.zw;\n"
-+"	gl_Position = position * gMatWVP;\n"
-+"}"
-+"";
-
-var gFS_Phong = 
-"precision mediump float;"
-+"uniform sampler2D gSamplerAlbedo;"
-+"uniform vec3 gWorldEyePosition;"
-+"uniform vec3 gLight0WorldPosition;"
-+"uniform vec3 gLight0Color;"
-+""
-+"varying vec3 oWorldPosition;"
-+"varying vec3 oWorldNormalVec;"
-+"varying vec2 oUv0;"
-+""
-+"void main()"
-+"{"
-+"  vec3 worldPosition = oWorldPosition;\n"
-+"	vec3 worldNormalVec = normalize(oWorldNormalVec);\n"
-+"	vec3 worldEyeVec = normalize(gWorldEyePosition - worldPosition);\n"
-+"	vec3 worldLight0Vec = normalize(gLight0WorldPosition - worldPosition);\n"
-+"	vec3 halfLightEyeVec = normalize(worldEyeVec + worldLight0Vec);\n"
-+""	   
-+"	float lightAttnCoeff = max(dot(worldNormalVec, worldLight0Vec), 0.0);\n"
-+"	float specularIntensity = max(dot(worldNormalVec, halfLightEyeVec), 0.0);\n"
-//+"	vec4 surfaceColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
-+"	vec4 surfaceColor = texture2D(gSamplerAlbedo, oUv0);"
-//+"	float temp = surfaceColor.r; surfaceColor.r = surfaceColor.b; surfaceColor.b = temp;"
-+""
-+"		lightAttnCoeff *= (0.7 + 0.7 * pow(specularIntensity, 12.0));"
-//+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor + lightColor * lightAttnCoeff * specularIntensity;"
-//+"	gl_FragColor = lightAttnCoeff * lightColor * surfaceColor;"
-//+"	lightAttnCoeff = max(lightAttnCoeff + lightAttnCoeff*pow(specularIntensity, 8.0), 0.05);"
-//
-//+"	gl_FragColor = surfaceColor * vec4(gLight0Color * vec3(lightAttnCoeff) + vec3(0.05), 1);"
-+"	gl_FragColor = vec4(0.05 + lightAttnCoeff, 0.05+lightAttnCoeff, 0.05+lightAttnCoeff, 1);"
-//+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
-//+"	worldNormalVec = worldNormalVec * 0.5 + vec3(0.5);"
-+""
-//+"	gl_FragColor = vec4(worldNormalVec.x, worldNormalVec.y, worldNormalVec.z, 1);"
-//+"	gl_FragColor = vec4(worldEyeVec.x, worldEyeVec.y, worldEyeVec.z, 1);"
-+"}"
-+"";
 
 // Application
 var gApplication = new efw.application();
@@ -273,7 +75,7 @@ var gTextureFormats = {
 };
 
 // 
-var gUseMeshCompressionType = 2; // 0 = None, 1 = 16b attributes, 2 = Azimuthal normals, 3 = SphereMap normals
+var gUseMeshCompressionType = 3; // 0 = None, 1 = 16b attributes, 2 = Azimuthal normals, 3 = SphereMap normals
 var gUseMaterialTextureFormat = 5; // 0 = None, 5 = DXT1
 var gUseMipMapOverlay = true;
 
@@ -284,12 +86,14 @@ var JsonBinaryResource = function() {
 } 
 
 // Buffers
+var gUberVertexProgramSource, gUberFragmentProgramSource;
 var gPrograms = [];
 var gUniformMatW, gUniformMatWIT, gUniformMatWVP;
 var gUniformPositionScale, gUniformPositionBias, gUniformUvScaleBias;
 var gUniformEyePos;
-var gUniformLight0Pos, gUniformLight0Color;
+var gUniformLight0Pos, gUniformLight0Color, gUniformLight1Pos, gUniformLight1Color;
 var gUniformSamplerAlbedo;
+var gUniformMaterialFresnel0, gUniformMaterialRoughness;
 var gAttr0, gAttr1, gAttr2;
 
 var gAsyncLoading = 0;
@@ -304,12 +108,22 @@ var gMaterialsGL = [];
 
 // Camera and Light
 //var gLightPosition = [1000, -10000, 500];
-var gLight0Position = new Float32Array([0.0, 1400.0, 0.0]);
-var gLight0Color = new Float32Array([1.0, 1.0, 1.0]);
+//var gLight0Position = new Float32Array([0.0, 1400.0, -100.0]);
+//var gLight0Color = new Float32Array([0.7, 0.4, 0.3]);
+
+var gLight0Position = new Float32Array([700.0, 1400.0, 0.0]);
+var gLight0Color = new Float32Array([0.6, 0.8, 0.6]);
+var gLight1Position = new Float32Array([-700.0, 1400.0, 200.0]);
+var gLight1Color = new Float32Array([0.6, 0.6, 0.8]);
+
+var gCameraUpdated = true;
 var gCamera = {};
 gCamera.eyePos = [-500.0, 700.0, 0.0];
 gCamera.lookAtVec = vec3.normalize([-1.0, 0.0, 0.0]);
 gCamera.upVec = [0.0, 1.0, 0.0];
+
+// Opt
+var gMatWorld, gMatWorldIT;
 
 // Fade
 var gFadeItem = null;
@@ -320,6 +134,10 @@ var gFadeTimer = null;
 // General
 var gIsFirstDraw = true;
 
+
+// loadBarrierWait, signalLoadBarrier waitLoadBarrier()
+var gRequests = [];
+var gRequestsLastEvent = [];
 function loadFileAsync(fullFilePath, fileType, functionPtr)
 {
 	gAsyncLoading++;
@@ -335,11 +153,18 @@ function loadFileAsync(fullFilePath, fileType, functionPtr)
 		functionPtr(this.response);
 		gAsyncLoading--;
 	};
+	xhr.onprogress = function(e) {
+		//console.log(e);
+		gRequestsLastEvent[e.currentTarget] = e;
+	}
 	xhr.onerror = xhr.onabort = function(e) { 
 		gAsyncLoading--;
 	};
-	
+
 	xhr.send();
+	gRequests.push( xhr );
+		
+	return xhr;
 }
 
 function fadeUpdate()
@@ -403,11 +228,39 @@ function setDefaultRenderStates()
 	gl.activeTexture(gl.TEXTURE0);
 }
 
-gApplication.loadJsonBinaryResource = function(outJsonBinary, jsonFilename, binaryFilename)
+gApplication.loadJsonBinaryResourceaSYNC = function(outJsonBinary, jsonFilename, binaryFilename)
 {
 	loadFileAsync(jsonFilename, 'text', function(data) { outJsonBinary.description = JSON.parse(data); } );
 	loadFileAsync(binaryFilename, 'arraybuffer', function(data) { outJsonBinary.data = data; } );
 } 
+
+gApplication.updateLoadContentProgress = function()
+{
+	var count = 0;
+	var totalProgress = 0;
+	
+	for (var i=0; i<gRequests.length; i++)
+	{
+		var lastEvent = gRequestsLastEvent[gRequests[i]];
+		if (lastEvent != null && lastEvent.lengthComputable)
+		{
+			totalProgress += (lastEvent.loaded/lastEvent.total);			
+			count++;
+		}
+	}
+
+	if (count > 0)
+	{
+		totalProgress = (Math.floor(totalProgress/count) * 100);
+		gCenterHud.innerHTML = 'Loading Awesome WebGL Demo!<br/><br/> Loading ' + totalProgress + '%';
+	}
+		
+	//console.log('count, totalProgress');
+	//console.log(count);
+	//console.log(totalProgress);
+	if (totalProgress != 100)
+		setTimeout(updateLoadContentProgress, 1000);
+}
 
 gApplication.loadContent = function()
 {
@@ -438,6 +291,11 @@ gApplication.loadContent = function()
 		loadFileAsync('assets/sponza-materials.evb', 'arraybuffer', function(data) { gMaterialsRawData = data; } );
 	}
 	
+	loadFileAsync('assets/_vs_programs.glsl', 'text', function(data) { gUberVertexProgramSource = data; } );
+	loadFileAsync('assets/_fs_programs.glsl', 'text', function(data) { gUberFragmentProgramSource = data; } );
+	
+	setTimeout(this.updateLoadContentProgress, 1000);
+	
 	/*
 	if (gUseCompressedModel)
 	{
@@ -461,6 +319,7 @@ gApplication.loadContent = function()
 	*/
 }
 
+/*
 function lightFadeIn()
 {
 
@@ -481,6 +340,7 @@ function startRandomizeLight()
 	//gLight0Color = newLight0Color;
 	setTimeout(function() { gLight0Color = newLight0Color; startRandomizeLight(); }, nextTime);
 }
+*/
 
 gApplication.initializeContent = function()
 {
@@ -544,7 +404,7 @@ gApplication.initializeContent = function()
 		
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-    	gMaterialsGL[i] = {albedoTexture:textureBuffer};
+    	gMaterialsGL[i] = {albedoTexture:textureBuffer, fresnel0:new Float32Array(material.fresnel0), roughness:material.roughness};
     	
 		if (dataIndex > gMaterialsRawData.byteLength)
 		{
@@ -606,6 +466,7 @@ gApplication.initializeContent = function()
 	gMeshes = null;
 	//console.log(gMeshesGL);
 	
+	/*
 	var vsBasic = shaderHelper.compileShader(gVS_Basic, gl.VERTEX_SHADER);
 	var vsCompressed = shaderHelper.compileShader(gVS_Compressed, gl.VERTEX_SHADER);
 	var vsCompressedAzimuthal = shaderHelper.compileShader(gVS_CompressedAzimuthal, gl.VERTEX_SHADER);
@@ -615,6 +476,22 @@ gApplication.initializeContent = function()
 	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressed, fsPhong);
 	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressedAzimuthal, fsPhong);
 	gPrograms[gPrograms.length] = shaderHelper.linkShader(vsCompressedSpheremap, fsPhong);
+	*/
+	
+	
+	var vertexShaders = [];
+	vertexShaders[vertexShaders.length] = shaderHelper.compileShaderWithDefines(gUberVertexProgramSource, gl.VERTEX_SHADER, '-DVS_SIMPLE');
+	vertexShaders[vertexShaders.length] = shaderHelper.compileShaderWithDefines(gUberVertexProgramSource, gl.VERTEX_SHADER, '-DNORMAL_ENCODING_U16 -DVS_COMPRESSED');
+	vertexShaders[vertexShaders.length] = shaderHelper.compileShaderWithDefines(gUberVertexProgramSource, gl.VERTEX_SHADER, '-DNORMAL_ENCODING_AZIMUTHAL -DVS_COMPRESSED');
+	vertexShaders[vertexShaders.length] = shaderHelper.compileShaderWithDefines(gUberVertexProgramSource, gl.VERTEX_SHADER, '-DNORMAL_ENCODING_SPHEREMAP -DVS_COMPRESSED');
+
+	var fragmentShaders = [];
+	fragmentShaders[fragmentShaders.length] = shaderHelper.compileShaderWithDefines(gUberFragmentProgramSource, gl.FRAGMENT_SHADER, '-DFS_SIMPLE');
+	
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vertexShaders[0], fragmentShaders[0]);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vertexShaders[1], fragmentShaders[0]);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vertexShaders[2], fragmentShaders[0]);
+	gPrograms[gPrograms.length] = shaderHelper.linkShader(vertexShaders[3], fragmentShaders[0]);
 	
 	var selectedProgram = gPrograms[gUseMeshCompressionType];
 	gl.useProgram(selectedProgram);
@@ -625,8 +502,13 @@ gApplication.initializeContent = function()
 	gUniformEyePos = gl.getUniformLocation(selectedProgram, "gWorldEyePosition");
 	gUniformLight0Pos = gl.getUniformLocation(selectedProgram, "gLight0WorldPosition");
 	gUniformLight0Color = gl.getUniformLocation(selectedProgram, "gLight0Color");
+	gUniformLight1Pos = gl.getUniformLocation(selectedProgram, "gLight1WorldPosition");
+	gUniformLight1Color = gl.getUniformLocation(selectedProgram, "gLight1Color");
+
 	gUniformSamplerAlbedo = gl.getUniformLocation(selectedProgram, "gSamplerAlbedo");
-		
+	gUniformMaterialFresnel0 = gl.getUniformLocation(selectedProgram, "gMaterialFresnel0");
+	gUniformMaterialRoughness = gl.getUniformLocation(selectedProgram, "gMaterialRoughness");
+
 	if (gUseMeshCompressionType != 0)
 	{
 		gUniformPositionBias = gl.getUniformLocation(selectedProgram, "gPositionBias");
@@ -650,6 +532,15 @@ gApplication.initializeContent = function()
 	//console.log( matWVP );
 	//console.log( gUniformSamplerAlbedo );
 	
+	// One time updates
+	gMatWorld = mat4.mul( mat4.translate(vec3.create(100.0, 0, 0)), mat4.scale(vec3.create(1.5, 1.0, 1.5)) );
+	gMatWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
+	gl.uniformMatrix4fv(gUniformMatW, false, new Float32Array(gMatWorld));
+	gl.uniformMatrix3fv(gUniformMatWIT, false, new Float32Array( mat4.upper3x3(gMatWorldIT) ));
+
+	gl.uniform3fv(gUniformLight0Color, gLight0Color);
+	gl.uniform3fv(gUniformLight1Color, gLight1Color);
+
 	gApplication.configs.fpsCounterEnabled = true;
 }
 
@@ -692,29 +583,48 @@ gApplication.update = function(elapsedTimeMillis)
 		
 		//cancelRequestAnimFrame(gAnimationFrameRequest);
 		//while(true) {}
+		gCameraUpdated = true;
 	}
 	if (this.inputs.mouse.wheelDelta != 0)
 	{
 		var scaleValue = -this.inputs.mouse.wheelDelta * elapsedTimeMillis * 7;
 		var scaledLookAtVec = vec3.mulScalar(gCamera.lookAtVec, scaleValue);
 		gCamera.eyePos = vec3.add(gCamera.eyePos, scaledLookAtVec);
+		
+		gCameraUpdated = true;
 	}
 	
-	//var matWorld = mat4.identity();
-	var matWorld = mat4.scale( vec3.create(1.5, 1.0, 1.5) );
-	var matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
-	var matView = mat4.lookAt(gCamera.eyePos, vec3.add(gCamera.eyePos, gCamera.lookAtVec), gCamera.upVec);
-	var matPerspective = mat4.perspectiveFovRH(Math.PI*0.35, gl.viewportWidth/gl.viewportHeight, 1.0, 5000.0);
-	var matWVP = mat4.mul(matWorld, mat4.mul(matView, matPerspective));
+	if (gCameraUpdated)
+	{
+		//var matWorld = mat4.identity();
+		//var matWorld = mat4.mul( mat4.translate(vec3.create(100.0, 0, 0)), mat4.scale(vec3.create(1.5, 1.0, 1.5)) );
+		//var matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
+		var matView = mat4.lookAt(gCamera.eyePos, vec3.add(gCamera.eyePos, gCamera.lookAtVec), gCamera.upVec);
+		var matPerspective = mat4.perspectiveFovRH(Math.PI*0.35, gl.viewportWidth/gl.viewportHeight, 1.0, 5000.0);
+		var matWVP = mat4.mul(gMatWorld, mat4.mul(matView, matPerspective));
 
-	gl.uniformMatrix4fv(gUniformMatW, false, new Float32Array(matWorld));
-	gl.uniformMatrix3fv(gUniformMatWIT, false, new Float32Array( mat4.upper3x3(matWorldIT) ));
-	gl.uniformMatrix4fv(gUniformMatWVP, false, new Float32Array(matWVP));
-	gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePos));
+		//gl.uniformMatrix4fv(gUniformMatW, false, new Float32Array(matWorld));
+		//gl.uniformMatrix3fv(gUniformMatWIT, false, new Float32Array( mat4.upper3x3(matWorldIT) ));
+		gl.uniformMatrix4fv(gUniformMatWVP, false, new Float32Array(matWVP));
+		gl.uniform3fv(gUniformEyePos, new Float32Array(gCamera.eyePos));
+
+		gCameraUpdated = false;
+	}
+
+	var angle = elapsedTimeMillis * 0.5;
+	var cosAngle = Math.cos(angle);
+	var sinAngle = Math.sin(angle);
+	gLight0Position[2] = gLight0Position[2] * cosAngle - gLight0Position[0] * sinAngle;
+	gLight0Position[0] = gLight0Position[0] * cosAngle + gLight0Position[2] * sinAngle;
+	gLight1Position[2] = gLight1Position[2] * cosAngle - gLight1Position[0] * sinAngle;
+	gLight1Position[0] = gLight1Position[0] * cosAngle + gLight1Position[2] * sinAngle;
+	
 	gl.uniform3fv(gUniformLight0Pos, gLight0Position);
+	gl.uniform3fv(gUniformLight1Pos, gLight1Position);
+	//gl.uniform3fv(gUniformLight0Color, gLight0Color);
+	//gl.uniform3fv(gUniformLight1Color, gLight1Color);
 	
 	//startRandomizeLight();
-	gl.uniform3fv(gUniformLight0Color, gLight0Color);
 }
 
 
@@ -737,6 +647,13 @@ gApplication.draw = function(elapsedTimeMillis)
 		{
         	gl.bindTexture(gl.TEXTURE_2D, material.albedoTexture);
         	gl.uniform1i(gUniformSamplerAlbedo, 0);
+        	
+			gl.uniform3fv(gUniformMaterialFresnel0, material.fresnel0);
+			//gl.uniform3fv(gUniformMaterialFresnel0, new Float32Array([0.45, 0.45, 0.45]));
+			//gl.uniform1f(gUniformMaterialRoughness, material.roughness);
+			
+			//gl.uniform1f(gUniformMaterialRoughness, 10);
+			gl.uniform1f(gUniformMaterialRoughness, 24);
 		}
 
 		if (gUseMeshCompressionType != 0)
