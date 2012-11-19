@@ -7,33 +7,12 @@
 <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
-<!-- Debug -->
-<!-- <script type="text/javascript" src="efw-math_d.js"></script>-->
-<!-- <script type="text/javascript" src="webgl-debug.js"></script> -->
-
-<!-- Release -->
-<!--
-<script type="text/javascript" src="dependencies/filesaver.min.js"></script>
-<script type="text/javascript" src="dependencies/lzma.js"></script>
-<script type="text/javascript" src="dependencies/lzma2.js"></script>
--->
-<!--
-	<script type="text/javascript" src="efw.js"></script>
-<script type="text/javascript" src="efw-math.js"></script>
-<script type="text/javascript" src="shaderhelper.js"></script>
-<script type="text/javascript" src="application.js"></script>
--->
-
-<!--
-<script type="text/javascript" src="efw.min.js"></script>
-<script type="text/javascript" src="application.js"></script>
--->
-<script type="text/javascript" src="efw.min.js"></script>
-<script type="text/javascript" src="app.min.js"></script>
+<script type="text/javascript" src="dist\efw.min.js"></script>
+<script type="text/javascript" src="dist\app.min.js"></script>
 
 <script>
 var app = new CustomApp();
-app.configs.webGLDebugEnabled = true;
+app.configs.webGLDebugEnabled = false;
 app.configs.fpsCounterEnabled = true;
 
 var startApplication = function()
@@ -52,9 +31,7 @@ var startApplication = function()
 	}
 	document.body.appendChild(app.graphicsDevice.canvas);	
 	
-	// TODO Improve this adding a property to check for caps
-	//if (!app.graphicsDevice.supports(efw.GraphicsDeviceExtensions.kCompressedTextures))
-	if (false)
+	if (!app.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures])
 	{
 		bottomLeftHud.style.color = "yellow";
 		bottomLeftHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";

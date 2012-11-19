@@ -1,13 +1,10 @@
 body
 {
+	background-color:gray;
 	margin:0 0 0 0;
 	min-width:1100px;
 	min-height:620px;
 	overflow:hidden;
-}
-.background
-{
-	z-index:1;
 }
 .overlay
 {
@@ -63,14 +60,4 @@ body
 	font-family:'Nothing You Could Do',cursive;
 	color:azure;
 	margin:-40px 0 0 -330px;
-}
-
-#webgl-canvas
-{
-	background-color:gray;
-	width:100%;
-	height:100%;
-	position:absolute;
-	left:0px;
-	top:0px;
 }
