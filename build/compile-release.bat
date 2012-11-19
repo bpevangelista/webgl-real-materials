@@ -1,11 +1,10 @@
 @echo off
 setlocal enableextensions enabledelayedexpansion
 
-call del build_release_output.txt
-
 pushd
-call del ..\\efw.all.js
-call del ..\\efw.min.js
+call del .\..\dist\build_release_output.txt
+call del ..\dist\efw.all.js
+call del ..\dist\efw.min.js
 
 REM Grab all files from the list
 REM ------------------------------------------------------------------------------------------
@@ -17,8 +16,8 @@ set EFW_EXTERNS=
 for /F "tokens=*" %%A in (externs.txt) do set EFW_EXTERNS=!EFW_EXTERNS! %%A
 
 @echo on
-call java -jar .\..\closure\compiler.jar --warning_level=VERBOSE --js %EFW_FILES% --externs %EFW_EXTERNS% --js_output_file .\..\efw.min.js 2>build_release_output.txt
+call java -jar .\..\closure\compiler.jar --warning_level=VERBOSE --js %EFW_FILES% --externs %EFW_EXTERNS% --js_output_file .\..\dist\efw.min.js 2>.\..\dist\build_release_output.txt
 
-call copy /A /Y %EFW_COPY_FILES% .\..\efw.all.js
+REM call copy /A /Y %EFW_COPY_FILES% .\..\dist\efw.all.js
 
 @popd
