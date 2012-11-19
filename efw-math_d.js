@@ -47,7 +47,7 @@ efw.vec3.isVec3 = function(v) {
 }
 efw.vec3.isUnit = function(v) {
 	efw.assert( efw.vec3.isVec3(v) );
-	return Math.abs(vec3.lengthSquared(v) - 1.0) < efw.kEpsilon;
+	return Math.abs(efw.vec3.lengthSquared(v) - 1.0) < efw.kEpsilon;
 }
 efw.vec3.create = function(x, y, z) {
 	return [x, y, z];
@@ -113,7 +113,7 @@ efw.vec4.isVec4 = function(v) {
 }
 efw.vec4.isUnit = function(v) {
 	efw.assert( efw.vec4.isVec4(v) );
-	return Math.abs(vec4.lengthSquared(v) - 1.0) < efw.kEpsilon;
+	return Math.abs(efw.vec4.lengthSquared(v) - 1.0) < efw.kEpsilon;
 }
 efw.vec4.create = function(x, y, z, w) {
 	return [x, y, z, w];
@@ -174,7 +174,7 @@ efw.vec4.dot = function(v1, v2) {
 // m12 m13 m14 m15
 // 
 efw.mat4.log = function(m) {
-	console.log("[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n", 
+	window.console.log("[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n", 
 		m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
 }
 //efw.mat4.isMat4 = function(m) {}
@@ -259,12 +259,34 @@ efw.mat4.upper3x3 = function(m) {
 		m[8], m[9], m[10] 
 	];
 }
-efw.mat4.lookAt = function(eyePos, lookAtPos, upVec) {
+efw.mat4.getVec3X = function(m)
+{
+	return [m[0], m[1], m[2]];
+}
+efw.mat4.getVec3Y = function(m)
+{
+	return [m[4], m[5], m[6]];
+}
+efw.mat4.getVec3Z = function(m)
+{
+	return [m[8], m[9], m[10]];
+}
+efw.mat4.lookAtRH = function(eyePos, lookAtPos, upVec) {
 	efw.assert( efw.vec3.isVec3(eyePos) && efw.vec3.isVec3(lookAtPos) && efw.vec3.isVec3(upVec) );
 	var axisZ = efw.vec3.normalize( efw.vec3.sub(lookAtPos, eyePos) );
 	var axisX = efw.vec3.normalize( efw.vec3.cross(upVec, axisZ) );
 	var axisY = efw.vec3.cross(axisZ, axisX);
 
+	return [
+		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
+		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
+		axisZ[0], axisZ[1], axisZ[2], -efw.vec3.dot(axisZ, eyePos),
+		0, 0, 0, 1
+	];
+}
+efw.mat4.lookAtVecRH = function(eyePos, axisX, axisY, axisZ)
+{
+	efw.assert( efw.vec3.isVec3(eyePos) && efw.vec3.isVec3(axisX) && efw.vec3.isVec3(axisY) && efw.vec3.isVec3(axisZ) );
 	return [
 		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
 		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
@@ -335,3 +357,8 @@ efw.mat4.translate = function(t) {
 		0, 0, 0, 1
 	];
 }
+
+// Using namespaces
+var vec3 = efw.vec3;
+var vec4 = efw.vec4;
+var mat4 = efw.mat4;

@@ -11,7 +11,6 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-var efw = efw || {};
 efw.vec3 = efw.vec3 || {};
 efw.vec4 = efw.vec4 || {};
 efw.mat4 = efw.mat4 || {};
@@ -19,7 +18,7 @@ efw.mat4 = efw.mat4 || {};
 efw.kEpsilon = 1e-6;
 
 efw.vec3.isUnit = function(v) {
-	return Math.abs(vec3.lengthSquared(v) - 1.0) < efw.kEpsilon;
+	return Math.abs(efw.vec3.lengthSquared(v) - 1.0) < efw.kEpsilon;
 }
 efw.vec3.create = function(x, y, z) {
 	return [x, y, z];
@@ -65,7 +64,7 @@ efw.vec3.cross = function(v1, v2) {
 }
 
 efw.vec4.isUnit = function(v) {
-	return Math.abs(vec4.lengthSquared(v) - 1.0) < efw.kEpsilon;
+	return Math.abs(efw.vec4.lengthSquared(v) - 1.0) < efw.kEpsilon;
 }
 efw.vec4.create = function(x, y, z, w) {
 	return [x, y, z, w];
@@ -117,17 +116,8 @@ efw.vec4.dot = function(v1, v2) {
 // m12 m13 m14 m15
 // 
 efw.mat4.log = function(m) {
-	console.log("[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n", 
+	window.console.log("[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n[ %f, %f, %f, %f ]\n", 
 		m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
-}
-//efw.mat4.isMat4 = function(m) {}
-efw.mat4.isMat4 = function(m) {
-	return (m && m.length == 16 &&
-		efw.isNumber(m[0]) && efw.isNumber(m[1]) && efw.isNumber(m[2]) && efw.isNumber(m[3]) &&
-		efw.isNumber(m[4]) && efw.isNumber(m[5]) && efw.isNumber(m[6]) && efw.isNumber(m[7]) &&
-		efw.isNumber(m[8]) && efw.isNumber(m[9]) && efw.isNumber(m[10]) && efw.isNumber(m[11]) &&
-		efw.isNumber(m[12]) && efw.isNumber(m[13]) && efw.isNumber(m[14]) && efw.isNumber(m[15])
-	);
 }
 efw.mat4.create = function(m00,m10,m20,m30,m01,m11,m21,m31,m02,m12,m22,m32,m03,m13,m23,m33) {
 	return [
@@ -199,11 +189,32 @@ efw.mat4.upper3x3 = function(m) {
 		m[8], m[9], m[10] 
 	];
 }
-efw.mat4.lookAt = function(eyePos, lookAtPos, upVec) {
+efw.mat4.getVec3X = function(m)
+{
+	return [m[0], m[1], m[2]];
+}
+efw.mat4.getVec3Y = function(m)
+{
+	return [m[4], m[5], m[6]];
+}
+efw.mat4.getVec3Z = function(m)
+{
+	return [m[8], m[9], m[10]];
+}
+efw.mat4.lookAtRH = function(eyePos, lookAtPos, upVec) {
 	var axisZ = efw.vec3.normalize( efw.vec3.sub(lookAtPos, eyePos) );
 	var axisX = efw.vec3.normalize( efw.vec3.cross(upVec, axisZ) );
 	var axisY = efw.vec3.cross(axisZ, axisX);
 
+	return [
+		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
+		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
+		axisZ[0], axisZ[1], axisZ[2], -efw.vec3.dot(axisZ, eyePos),
+		0, 0, 0, 1
+	];
+}
+efw.mat4.lookAtVecRH = function(eyePos, axisX, axisY, axisZ)
+{
 	return [
 		axisX[0], axisX[1], axisX[2], -efw.vec3.dot(axisX, eyePos),
 		axisY[0], axisY[1], axisY[2], -efw.vec3.dot(axisY, eyePos),
@@ -268,3 +279,8 @@ efw.mat4.translate = function(t) {
 		0, 0, 0, 1
 	];
 }
+
+// Using namespaces
+var vec3 = efw.vec3;
+var vec4 = efw.vec4;
+var mat4 = efw.mat4;
