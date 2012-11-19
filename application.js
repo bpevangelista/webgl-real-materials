@@ -44,7 +44,7 @@ var CustomApp = function()
 	this.centerHud = null;
 
 	// Loader and resource manager
-	this.loader = new efw.Loader(this.graphicsDevice);
+	this.loader = new efw.Loader();
 	this.resourceManager = new efw.ResourceManager(this.graphicsDevice);
 
 	this.camera = new efw.CameraPerspective();
@@ -72,7 +72,7 @@ var CustomApp = function()
 	this._useMipMapOverlay = true;
 }
 CustomApp.prototype = Object.create( efw.Application.prototype );
-CustomApp.prototype.constructor = CustomApp;
+CustomApp.prototype.constructor = (CustomApp||{});
 
 
 CustomApp.prototype.setHuds = function(userCenterHud, userFpsHud)
