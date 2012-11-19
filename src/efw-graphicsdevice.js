@@ -9,6 +9,9 @@ efw.GraphicsDeviceExtensions = {
  */
 efw.GraphicsDevice = function()
 {
+	if (typeof document == 'undefined' || document == null)
+		return null;
+	
 	// 
 	// --------------------------------------------------------------------------------------------------------------
 	this.canvas = document.createElement('canvas');
@@ -34,7 +37,7 @@ efw.GraphicsDevice = function()
 	} 
 	catch (e) {
 		window.console.log("*** Failed to create GraphicsDevice");
-		return false;
+		return null;
 	}
 	
 	if (this.gl) {
