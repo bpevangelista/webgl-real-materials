@@ -240,8 +240,12 @@ efw.Application.prototype.init = function()
 		window.console.log('efw.Application.userInitializeContent\n');
 		window.console.log('efw.Application.userUpdate\n');
 		window.console.log('efw.Application.userDraw\n');
+		return false;
 	}
 
+	if (this.graphicsDevice.canvas == null)
+		return false;
+	
 	// Enable graphics device debugging	
 	if (this.configs.webGLDebugEnabled)
 		this.graphicsDevice.setDebugEnable(true);
