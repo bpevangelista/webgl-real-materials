@@ -1,0 +1,10 @@
+..\src\efw-camera.js
+..\src\efw-light.js
+..\src\efw-loader.js
+..\src\efw-material.js
+..\src\efw-math.js
+..\src\efw-platform.js
+..\src\efw-render.js
+..\src\efw-resources.js
+..\src\efw-shaderprogram.js
+..\src\efw-trimesh.js
