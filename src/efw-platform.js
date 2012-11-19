@@ -31,16 +31,36 @@ window.cancelRequestAnimFrame = ( function() {
 } )();
 
 
-// Typed arrays (this prevent crashes on browsers that don't support it')
-window.Int8Array = Int8Array || Array;
-window.Uint8Array = Uint8Array || Array;
-window.Uint8ClampedArray = Uint8ClampedArray || Array;
-window.Int16Array = Int16Array || Array;
-window.Uint16Array = Uint16Array || Array;
-window.Int32Array = Int32Array || Array;
-window.Uint32Array = Uint32Array || Array; 
-window.Float32Array = Float32Array || Array;
-
 // Evangelista framework namespace
 var efw = efw || {};
 
+efw.isBrowserSupported = function()
+{
+	return (
+		(typeof Object.create != 'undefined') &&
+		
+		// Typed arrays 
+		(typeof Uint8Array != 'undefined') &&
+		(typeof Float32Array != 'undefined') &&
+		
+		// WebGL
+		(typeof window.WebGLRenderingContext != 'undefined') && 
+		window.WebGLRenderingContext != null
+	);
+}
+
+
+// Stop errors on IE while parsing the javascript
+if (!efw.isBrowserSupported())
+{
+	window.Int8Array = Array;
+	window.Uint8Array = Array;
+	window.Uint8ClampedArray = Array;
+	window.Int16Array = Array;
+	window.Uint16Array = Array;
+	window.Int32Array = Array;
+	window.Uint32Array = Array; 
+	window.Float32Array = Array;
+
+	Object.create = (Object.create || function(val) { return {}; });
+}
