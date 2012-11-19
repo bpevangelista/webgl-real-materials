@@ -12,299 +12,262 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// Browser compatibility layer
-window.requestAnimFrame = ( function() {
-	return window.requestAnimationFrame 
-		|| window.webkitRequestAnimationFrame
-		|| window.mozRequestAnimationFrame
-		|| window.oRequestAnimationFrame
-		|| window.msRequestAnimationFrame
-		|| function(callback) { window.setTimeout(callback, 1000.0/60.0); }
-})();
-window.cancelRequestAnimFrame = ( function() {
-	return window.cancelAnimationFrame
-    	|| window.webkitCancelRequestAnimationFrame
-		|| window.mozCancelRequestAnimationFrame
-		|| window.oCancelRequestAnimationFrame
-		|| window.msCancelRequestAnimationFrame
-        || clearTimeout
-} )();
+/**
+ * @constructor 
+ */
+efw.Mouse = function()
+{
+	this.position = [0, 0];
+	this.positionDelta = [0, 0];
+	this.isPressed = [false, false, false];
+	this.wheelDelta = 0;
+}
 
+/**
+ * @constructor 
+ */
+efw.FpsStats = function()
+{
+	this.updateFps = 0;
+	this.updateTimeMs = 0.0;
+	
+	this.drawFps = 0;
+	this.drawTimeMs = 0.0;
+}
 
-// OpenGL
-var gl;
-var glExtensions = [];
+/**
+ * @constructor 
+ */
+efw.Application = function() {
 
-// Evangelista framework
-var efw = efw || {};
-efw.application = function() {
-var self = this;
+	// User configurations
+	// ----------------------------------------------------------------------------------------------------
+	this.configs = {};
+	this.configs.webGLDebugEnabled = false;
+	this.configs.fpsCounterEnabled = false;
+	this.configs.maxUpdateIterations = 3;
+	this.configs.desiredElapsedTime = 32;
+	
+	// User attributes
+	// ----------------------------------------------------------------------------------------------------
+	this.inputs = {};
+	this.inputs.mouse = new efw.Mouse();
+	this.fpsStats = new efw.FpsStats();
+	this._fpsStatsWrite = new efw.FpsStats();
+	
+	// Viewport size
+	this.viewportWidth = 4;
+	this.viewportHeight = 4;
+	
+	// General
+	this.graphicsDevice = new efw.GraphicsDevice();
+	this._fpsStats = new efw.FpsStats();
+	
+	// Input
+	this._mouseRead = new efw.Mouse();
+	this._mouseReadLast = new efw.Mouse();
+	this._mouseWrite = new efw.Mouse();
+	
+	// Timer
+	this._animationFrameRequest = null;
+	this._previousTime = 0;
+	this._elapsedTime = 0;
+}
 
-// User configurations
-// ----------------------------------------------------------------------------------------------------
-this.configs = this.configs || {};
-this.configs.webGLDebugEnabled = false;
-this.configs.fpsCounterEnabled = false;
-this.configs.maxUpdateIterations = 3;
-this.configs.desiredElapsedTime = 32;
-
-// User attributes
-// ----------------------------------------------------------------------------------------------------
-this.inputs = this.inputs || {};
-this.inputs.mouse = this.inputs.mouse || {};
-this.inputs.mouse.isPressed = [false, false, false];
-this.inputs.mouse.position = [0, 0];
-this.inputs.mouse.positionDelta = [0, 0];
-this.inputs.mouse.wheelDelta = 0;
-this.fpsStats = { 'updateFps': 0, 'updateTimeMs': 0, 'drawFps': 0, 'drawTimeMs': 0 };
 
 // User defined methods
 // ----------------------------------------------------------------------------------------------------
-this.loadContent = null;
-this.initializeContent = null;
-this.update = null;
-this.draw = null;
+/** @type {function()?} */
+efw.Application.prototype.userLoadContent = null;
+/** @type {function()?} */
+efw.Application.prototype.userInitializeContent = null;
+/** @type {function(number)?} */
+efw.Application.prototype.userUpdate = null;
+/** @type {function(number)?} */
+efw.Application.prototype.userDraw = null;
+	
+// Optional callbacks
+// ----------------------------------------------------------------------------------------------------
+/** @type {function()?} */
+efw.Application.prototype.userOnresize = null;
 
-// General
-var gIsInitialized = false;
 
-// Canvas
-var gCanvas = null;
-
-// Events
-var gMouse = {};
-var gLastMouse = {};
-var gMouseWrite = {};
-gMouse.isPressed = [false, false, false];
-gMouse.position = [0, 0];
-gMouse.wheelDelta = 0;
-gLastMouse.isPressed = [false, false, false];
-gLastMouse.position = [0, 0];
-gLastMouse.wheelDelta = 0;
-gMouseWrite.isPressed = [false, false, false];
-gMouseWrite.position = [0, 0];
-gMouseWrite.wheelDelta = 0;
-
-// FPS Counter
-var gUpdateFps = 0;
-var gDrawFps = 0;
-var gUpdateTimeMs = 0;
-var gDrawTimeMs = 0;
-
-// Timer
-var gAnimationFrameRequest = null;
-var gPreviousTime = 0;
-var gElapsedTime = 0;
-
-var initializeWebGL = function()
+efw.Application.prototype.initializeInput = function()
 {
-	try {
-		gl = gCanvas.getContext("webgl")
-			|| gCanvas.getContext("experimental-webgl");
-	} 
-	catch (e) {
-		return false;
-	}
+	var self = this;
 	
-	if (gl) {
-		if (self.configs.webGLDebugEnabled && typeof WebGLDebugUtils != 'undefined')
-		{
-			console.log("*** WebGLDebugUtils is enabled");
-			gl = WebGLDebugUtils.makeDebugContext(gl);
-		}
-		self.resizeCanvas();
-		
-		// Grab available extensions
-		glExtensions.push( gl.getExtension("WEBGL_compressed_texture_s3tc") ||
-			gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc") || 
-			gl.getExtension("MOZ_WEBGL_compressed_texture_s3tc") );
-		//console.log(glExtensions);
-		
-		if (gl.compressedTexImage2D != null)
-		{
-			gl.COMPRESSED_RGBA_S3TC_DXT1_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT1_EXT;
-			gl.COMPRESSED_RGBA_S3TC_DXT3_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT3_EXT;
-			gl.COMPRESSED_RGBA_S3TC_DXT5_EXT = glExtensions[0].COMPRESSED_RGBA_S3TC_DXT5_EXT;
-			gl.COMPRESSED_RGB_S3TC_DXT1_EXT = glExtensions[0].COMPRESSED_RGB_S3TC_DXT1_EXT;
-		}
-	}
-	
-	return true;
-}
-
-var initialize = function()
-{	
 	// Add event listeners
-	gCanvas.addEventListener('mouseout', onMouseOut, false);
-	gCanvas.addEventListener('mousedown', function(e) { gMouseWrite.isPressed[e.button] = true; onMouseMove(e); mouseUpdate(); mouseUpdate(); /*console.log(e)*/ }, false);
-	gCanvas.addEventListener('mouseup', function(e) { gMouseWrite.isPressed[e.button] = false; /*console.log(e)*/ }, false);
-	gCanvas.addEventListener('mousemove', onMouseMove, false);
-	gCanvas.addEventListener('mousewheel', onMouseWheel, false);
-	gCanvas.addEventListener('DOMMouseScroll', onMouseWheelFirefox, false);
-
-	self.initializeContent();	
-	gIsInitialized = true;
+	this.graphicsDevice.canvas.addEventListener('mousedown', function(e) { self._mouseWrite.isPressed[e.button] = true; self.onMouseMove(e); self.mouseUpdate(); self.mouseUpdate(); /*window.console.log(e)*/ }, false);
+	this.graphicsDevice.canvas.addEventListener('mouseup', function(e) { self._mouseWrite.isPressed[e.button] = false; /*window.console.log(e)*/ }, false);
+	this.graphicsDevice.canvas.addEventListener('mouseout', this.onMouseOut.bind(this), false);
+	this.graphicsDevice.canvas.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+	this.graphicsDevice.canvas.addEventListener('mousewheel', this.onMouseWheel.bind(this), false);
+	this.graphicsDevice.canvas.addEventListener('DOMMouseScroll', this.onMouseWheelFirefox.bind(this), false);
 }
 
-var waitForAsyncContent = function(functionPtr)
-{
-	if (gAsyncLoading == 0)
-		functionPtr();
-	else
-		setTimeout(function() { waitForAsyncContent(functionPtr); }, 2000);
-}
 
-var mainLoop = function()
+efw.Application.prototype.mainLoop = function()
 {
-	gAnimationFrameRequest = requestAnimFrame(mainLoop);
+	var startTime = new Date().getTime();
+	this._animationFrameRequest = window.requestAnimFrame(this.mainLoop.bind(this));
 		
-	var currentTime = new Date().getTime();
-	gElapsedTime += currentTime - gPreviousTime;
-	gPreviousTime = currentTime;
-	//console.log(gElapsedTime);
+	this._elapsedTime += startTime - this._previousTime;
+	this._previousTime = startTime;
+	//window.console.log(this._elapsedTime);
 	
 	// Calculate required loop count
-	var requiredUpdateCount = Math.floor(gElapsedTime / self.configs.desiredElapsedTime);
-	var loopCount = Math.min( requiredUpdateCount, self.configs.maxUpdateIterations);
+	var requiredUpdateCount = Math.floor(this._elapsedTime / this.configs.desiredElapsedTime);
+	var loopCount = Math.min( requiredUpdateCount, this.configs.maxUpdateIterations);
 	if (requiredUpdateCount > 0)
-		gElapsedTime = 0;
+		this._elapsedTime = 0;
 
 	// Input handling
-	updateInput();
+	this.updateInput();
 
 	// Update
-    var updateStartTime = new Date().getTime();
 	for (var i=0; i < loopCount; i++)
     {
-		self.update(self.configs.desiredElapsedTime*0.001);
-		gUpdateFps++;
+		this.userUpdate(this.configs.desiredElapsedTime*0.001);
+		this._fpsStatsWrite.updateFps++;
     }
-	gUpdateTimeMs += new Date().getTime() - updateStartTime;
+	this._fpsStatsWrite.updateTimeMs += new Date().getTime() - startTime;
        
     // Draw
     var drawStartTime = new Date().getTime();
-    if (requiredUpdateCount >= 1 && requiredUpdateCount <= 2)
+    //if (requiredUpdateCount >= 1 && requiredUpdateCount <= 2)
+    if (requiredUpdateCount >= 1)
     {
-		self.draw(self.configs.desiredElapsedTime*0.001);
-		gDrawFps++;
+		this.userDraw(this.configs.desiredElapsedTime*0.001);
+		this._fpsStatsWrite.drawFps++;
 	}
-	gDrawTimeMs += new Date().getTime() - drawStartTime;
-}
-
-var updateFps = function()
-{
-	setTimeout(updateFps, 1000);
-	if (self.configs.fpsCounterEnabled)
-	{
-		gUpdateFps = Math.max(gUpdateFps, 1);
-		gDrawFps = Math.max(gDrawFps, 1);
-		
-		self.fpsStats = { 'updateFps': gUpdateFps, 'updateTimeMs': (gUpdateTimeMs/gUpdateFps).toFixed(3),
-			'drawFps': gDrawFps, 'drawTimeMs': (gDrawTimeMs/gDrawFps).toFixed(3) };
-	
-		gUpdateFps = 0;
-		gDrawFps = 0;
-		gUpdateTimeMs = 0;
-		gDrawTimeMs = 0;
-	}
+	this._fpsStatsWrite.drawTimeMs += new Date().getTime() - drawStartTime;
 }
 
 
-// Input handling
+// Built-in fps counter
 // ------------------------------------------------------------------------------------------
-var updateInput = function() {
-	mouseUpdate();
+efw.Application.prototype.updateFps = function()
+{
+	setTimeout(this.updateFps.bind(this), 1000);
+	if (this.configs.fpsCounterEnabled)
+	{
+		var updateTimeMs = (this._fpsStatsWrite.updateFps > 0)?
+			(this._fpsStatsWrite.updateTimeMs/this._fpsStatsWrite.updateFps).toFixed(3) : this._fpsStatsWrite.updateTimeMs; 
+		
+		var drawTimeMs = (this._fpsStatsWrite.drawFps > 0)?
+			(this._fpsStatsWrite.drawTimeMs/this._fpsStatsWrite.drawFps).toFixed(3) : this._fpsStatsWrite.drawTimeMs;
+		
+		this.fpsStats = { 'updateFps': this._fpsStatsWrite.updateFps, 'updateTimeMs': updateTimeMs,
+			'drawFps': this._fpsStatsWrite.drawFps, 'drawTimeMs': drawTimeMs };
+	
+		this._fpsStatsWrite.updateFps = 0;
+		this._fpsStatsWrite.drawFps = 0;
+		this._fpsStatsWrite.updateTimeMs = 0;
+		this._fpsStatsWrite.drawTimeMs = 0;
+	}
 }
-var mouseUpdate = function() {
-	gLastMouse.isPressed = gMouse.isPressed;
-	gLastMouse.position = gMouse.position;
-	gLastMouse.wheelDelta = gMouse.wheelDelta;
-	
-	gMouse.isPressed = gMouseWrite.isPressed;
-	gMouse.position = gMouseWrite.position;
-	gMouse.wheelDelta = gMouseWrite.wheelDelta;
-	
+
+
+// Input event handling
+// ------------------------------------------------------------------------------------------
+efw.Application.prototype.updateInput = function() {
+	this.mouseUpdate();
+}
+efw.Application.prototype._mouseDeepCopy = function(dest, src) {
+	dest.position = src.position;
+	dest.positionDelta = src.positionDelta;
+	dest.isPressed = src.isPressed;
+	dest.wheelDelta = src.wheelDelta;
+}
+efw.Application.prototype.mouseUpdate = function() {
+	this._mouseDeepCopy(this._mouseReadLast, this._mouseRead);
+	this._mouseDeepCopy(this._mouseRead, this._mouseWrite);
+
 	// Clear write wheel delta
-	gMouseWrite.wheelDelta = 0;
+	this._mouseWrite.positionDelta = [0, 0];
+	this._mouseWrite.wheelDelta = 0;
 	
-	// Copy out
-	self.inputs.mouse.isPressed = gMouse.isPressed;
-	self.inputs.mouse.position = gMouse.position;
-	self.inputs.mouse.wheelDelta = gMouse.wheelDelta;
+	// Copy out (don't allow the user to change our internal variable)
+	this._mouseDeepCopy(this.inputs.mouse, this._mouseRead);
 
 	// Calculate current position delta
-	self.inputs.mouse.positionDelta = [ gMouse.position[0] - gLastMouse.position[0],
-		gMouse.position[1] - gLastMouse.position[1] ];
+	this.inputs.mouse.positionDelta = [ this._mouseRead.position[0] - this._mouseReadLast.position[0],
+		this._mouseRead.position[1] - this._mouseReadLast.position[1] ];
+}
+efw.Application.prototype.onMouseOut = function(e) {
+	this._mouseWrite.isPressed = [false, false, false];
+}
+efw.Application.prototype.onMouseMove = function(e) {
+	this._mouseWrite.position = [e.clientX, e.clientY];
+}
+efw.Application.prototype.onMouseWheel = function(e) {
+	this._mouseWrite.wheelDelta = e.wheelDelta;
+}
+efw.Application.prototype.onMouseWheelFirefox = function(e) {
+	this._mouseWrite.wheelDelta = e.detail*-40;
+}
 
-}
-var onMouseOut = function(e) {
-	gMouseWrite.isPressed = [false, false, false];
-}
-var onMouseMove = function(e) {
-	gMouseWrite.position = [e.clientX, e.clientY];
-}
-var onMouseWheel = function(e) {
-	gMouseWrite.wheelDelta = e.wheelDelta;
-}
-var onMouseWheelFirefox = function(e) {
-	gMouseWrite.wheelDelta = e.detail*-40;
-}
-
-// Public visible methods
+// Other event handlers
 // ------------------------------------------------------------------------------------------
-this.resizeCanvas = function()
+efw.Application.prototype.handleCanvasResize = function()
 {
+	// Round window size to 32 pixels
 	var desiredWidth = (window.innerWidth+31) & ~31;
 	var desiredHeight = (window.innerHeight+31) & ~31;
-	gCanvas.width = desiredWidth;
-	gCanvas.height = desiredHeight;
-	gl.viewportWidth = desiredWidth;
-	gl.viewportHeight = desiredHeight;
-	//console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
+	
+	this.viewportWidth = desiredWidth;
+	this.viewportHeight = desiredHeight;
+	this.graphicsDevice.canvas.width = desiredWidth;
+	this.graphicsDevice.canvas.height = desiredHeight;
+	//window.console.log("Canvas [" + canvas.width + "px, " + canvas.height + "px]");
+	
+	if (this.userOnresize != null)
+		this.userOnresize();
 }
 
-this.start = function(canvas)
-{
-	if (typeof canvas == 'undefined' || canvas == null)
-		return false;
-	
-	if (typeof this.loadContent != 'function'
-		|| typeof this.initializeContent != 'function'
-		|| typeof this.update != 'function'
-		|| typeof this.draw != 'function' )
-	{
-		console.log('Error! You must implement the following methods:');
-		console.log('efw.application.loadContent\n');
-		console.log('efw.application.initializeContent\n');
-		console.log('efw.application.update\n');
-		console.log('efw.application.draw\n');
-	}
-	
-	gCanvas = canvas;
-	if (!initializeWebGL())
-		return false;
 
-	this.loadContent();	
-	waitForAsyncContent(initialize);
-	
+// Start application
+// ------------------------------------------------------------------------------------------
+efw.Application.prototype.init = function()
+{
+	if (this.userLoadContent == null
+		|| this.userInitializeContent == null
+		|| this.userUpdate == null
+		|| this.userDraw == null )
+	{
+		window.console.log('Error! You must implement the following methods:');
+		window.console.log('efw.Application.userLoadContent\n');
+		window.console.log('efw.Application.userInitializeContent\n');
+		window.console.log('efw.Application.userUpdate\n');
+		window.console.log('efw.Application.userDraw\n');
+	}
+
+	// Enable graphics device debugging	
+	if (this.configs.webGLDebugEnabled)
+		this.graphicsDevice.setDebugEnable(true);
+
+	// Force handle canvas resize
+	this.handleCanvasResize();
+
+	// Load content, initialize input and wait for user content to be loaded before initialing it	
+	this.userLoadContent();
+	this.userInitializeContent();
+	this.initializeInput();
+
 	return true;
 }
 
-this.run = function()
+
+// Run application
+// ------------------------------------------------------------------------------------------
+efw.Application.prototype.run = function()
 {
-	// Wait for the initialization to finish
-	if (!gIsInitialized)
-	{
-		setTimeout(self.run, 2000);
-		return;
-	}
-	
 	// Start update fps
-	setTimeout(updateFps, 1000);
+	setTimeout(this.updateFps.bind(this), 1000);
 	
 	// Start main loop
-	gPreviousTime = new Date().getTime();
-	gAnimationFrameRequest = requestAnimFrame(mainLoop);
+	this._previousTime = new Date().getTime();
+	this._animationFrameRequest = window.requestAnimFrame(this.mainLoop.bind(this));
 }
 
-} // application
+//
