@@ -11,8 +11,7 @@ efw.ResourcePackage = function() {
 /**
  * @constructor 
  */
-efw.Loader = function(graphicsDevice) {
-	this._graphicsDevice = graphicsDevice;
+efw.Loader = function() {
 	
 	this._asyncLoading = 0;
 	
