@@ -2,11 +2,11 @@
 ..\src\efw-platform.js
 ..\src\efw-application.js
 ..\src\efw-camera.js
+..\src\efw-graphicsdevice.js
 ..\src\efw-light.js
 ..\src\efw-loader.js
 ..\src\efw-material.js
 ..\src\efw-math_d.js
-..\src\efw-render.js
 ..\src\efw-resources.js
 ..\src\efw-shaderprogram.js
 ..\src\efw-trimesh.js
