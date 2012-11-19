@@ -33,6 +33,7 @@ efw.Transform = function()
 /**
  * @constructor
  * @extends efw.Application
+ * @export
  */
 var CustomApp = function()
 {
@@ -267,8 +268,6 @@ CustomApp.prototype.userInitializeContent = function()
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[3], fragmentShaders[0]) );
 	this.graphicsDevice.setShaderProgram(this.shaderPrograms[3]);
 
-	window.console.log(this.graphicsDevice.activeShaderProgram);
-		
 	// One time updates
 	this.matWorld = mat4.mul( mat4.translate(vec3.create(100.0, 0, 0)), mat4.scale(vec3.create(1.5, 1.0, 1.5)) );
 	this.matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
