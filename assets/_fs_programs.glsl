@@ -1,13 +1,12 @@
 precision mediump float;
 
-uniform sampler2D gSamplerAlbedo;
-
 uniform vec3 gWorldEyePosition;
 uniform vec3 gLight0WorldPosition;
 uniform vec3 gLight1WorldPosition;
 uniform vec3 gLight0Color;
 uniform vec3 gLight1Color;
 
+uniform sampler2D gSamplerAlbedo;
 uniform vec3 gMaterialFresnel0;
 uniform float gMaterialRoughness;
 

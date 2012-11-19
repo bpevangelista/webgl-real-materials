@@ -8,6 +8,10 @@ uniform vec4 gPositionScale;
 uniform vec4 gPositionBias;
 uniform vec4 gUvScaleBias;
 
+// ----------
+
+attribute vec3 aPosition;
+
 // Normal
 #if defined(NORMAL_ENCODING_SPHEREMAP) || defined(NORMAL_ENCODING_AZIMUTHAL)
 attribute vec2 aNormal;
@@ -15,8 +19,9 @@ attribute vec2 aNormal;
 attribute vec3 aNormal;
 #endif
 
-attribute vec3 aPosition;
 attribute vec2 aUv0;
+
+// ----------
 
 varying vec3 oWorldPosition;
 varying vec3 oWorldNormalVec;
@@ -25,6 +30,9 @@ varying vec2 oUv0;
 #ifdef MIP_OVERLAY
 varying vec2 oUvDebug;
 #endif
+
+// ----------
+
 
 vec4 applyScaleAndBias(vec4 value, vec4 scale, vec4 bias)
 {
