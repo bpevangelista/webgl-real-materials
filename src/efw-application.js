@@ -43,8 +43,9 @@ efw.Application = function() {
 	// User configurations
 	// ----------------------------------------------------------------------------------------------------
 	this.configs = {};
-	this.configs.webGLDebugEnabled = false;
 	this.configs.fpsCounterEnabled = false;
+	this.configs.stopRunningOnError = false;
+	this.configs.webGLDebugEnabled = false;
 	this.configs.maxUpdateIterations = 3;
 	this.configs.desiredElapsedTime = 32;
 	
@@ -109,7 +110,10 @@ efw.Application.prototype.initializeInput = function()
 efw.Application.prototype.mainLoop = function()
 {
 	var startTime = new Date().getTime();
-	this._animationFrameRequest = window.requestAnimFrame(this.mainLoop.bind(this));
+	
+	// Stop graphics device if there's any pending errors
+	if (!this.configs.stopRunningOnError || !this.graphicsDevice.hasError())
+		this._animationFrameRequest = window.requestAnimFrame(this.mainLoop.bind(this));
 		
 	this._elapsedTime += startTime - this._previousTime;
 	this._previousTime = startTime;
