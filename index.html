@@ -3,22 +3,28 @@
 <head>
 <title>WebGL: Crytek's Sponza Model - Code by Bruno Evangelista</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-<link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Nothing+You+Could+Do'>
 <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
-<script type="text/javascript" src="dist/efw.min.js"></script>
+<script type="text/javascript" src="dist/efw.all.js"></script>
 <script type="text/javascript" src="dist/app.all.js"></script>
 
 <script>
 
+var isMenuVisible = false;
+var bottomMenu = null;
 var app = null;
+
 var startApplication = function()
 {
+	//
+	bottomMenu = document.getElementById("menu-bottom");
+	var topMenu = document.getElementById("menu-top");
+
 	var centerHud = document.getElementById("center-hud"); 
 	var bottomLeftHud = document.getElementById("bottomleft-hud");
 	var fpsHud = document.getElementById("fps-hud");
-
+	
 	if (!efw.isBrowserSupported())
 	{
 		centerHud.style.color = "#CC0000";
@@ -31,7 +37,7 @@ var startApplication = function()
 	app.configs.stopRunningOnError = false;
 	app.configs.webGLDebugEnabled = false;
 	app.configs.fpsCounterEnabled = true;
-	app.setHuds(centerHud, fpsHud);
+	app.setHuds(centerHud, fpsHud, topMenu);
 		
 	if (!app.init())
 	{
@@ -40,7 +46,8 @@ var startApplication = function()
 			'Please, try the latest version of Firefox, Chrome or Safari.';
 		return;
 	}
-	document.body.appendChild(app.graphicsDevice.canvas);	
+	var webglDiv = document.getElementById('webgl'); 
+	webglDiv.appendChild(app.graphicsDevice.canvas);
 	
 	if (!app.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures])
 	{
@@ -49,19 +56,77 @@ var startApplication = function()
 	}
 }
 
+var toggleMenu = function()
+{
+	isMenuVisible = !isMenuVisible;
+	bottomMenu.style.display = ((isMenuVisible)? 'inherit' : 'none'); 
+}
 
+var setShader = function(shaderIndex)
+{
+	if (app.isInitialized)
+	{
+		app.setShader(shaderIndex);
+	}
+}
 
+var setMeshes = function(meshIndex)
+{
+	
+}
 </script>
 
-<body onload='startApplication();' onresize='app.handleCanvasResize();'>
+<body onload='startApplication();' onresize='if (app != null) app.handleCanvasResize();'>
 
-	<div id="fps-hud" class="topmost no-pointer"></div>
 	<div id="center-hud" class="topmost no-pointer">
 		Loading Awesome WebGL Demo!<br/><br/>Please Wait...<br/>
 		<img src="loading.gif" width="48" height="48" alt="loading-icon"/>
 	</div>
+	
+	<div id="fps-hud" class="topmost no-pointer"></div>
 	<div id="bottomleft-hud" class="topmost no-pointer"></div>
 	<div id="signature-hud" class="topmost no-pointer">- Code by Bruno Evangelista&nbsp;&nbsp;</div>
+	
+	<div id="webgl"></div>
+	
+	<div id="menu-top" class="topmost menu">
+		Options 
+		<input type="button" value="+" onclick="toggleMenu();"/>
+	</div>
+	
+	<div id="menu-bottom">
+		<div class="topmost menu">
+			Lighting:<br/>
+		    <input type="radio" name="lightingGroup" onclick="setShader(3);"/>1 Light: Simple<br/>
+		    <input type="radio" name="lightingGroup" checked="checked" onclick="setShader(7);"/>2 Lights: Physically Based
+		</div>
+		
+		<div class="topmost menu">
+			Meshes:<br/>
+		    <input type="radio" name="meshGroup" checked="checked"/ onclick=""> Compressed (4.02 MB)<br/>
+		    <input type="radio" name="meshGroup" /> Uncompressed (7.15 MB)
+		</div>
+		
+		<div class="topmost menu">
+			Materials:<br/>
+		    <input type="radio" name="materialGroup" checked="checked"/> Compressed (3.75 MB)<br/>
+		    <input type="radio" name="materialGroup"/> Uncompressed (7.13 MB)
+		</div>
+		
+		<div class="topmost menu">
+			Info:<br/>
+		    &nbsp;&nbsp;381 Meshes, 262K Triangles<br/>
+		    &nbsp;&nbsp;26 Materials<br/><br/>
+		    
+		    Tech:<br/>
+		    &nbsp;&nbsp;Physically Based Shading with Microfacet BRDF<br/>
+		    &nbsp;&nbsp;Compressed Meshes<br/>
+		    &nbsp;&nbsp;DXT Compressed Textures<br/>
+		    &nbsp;&nbsp;Async Package Loading<br/>
+		</div>
+	</div>
+	
+
 </body>
 
 </html>
