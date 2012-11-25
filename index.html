@@ -7,19 +7,30 @@
 <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
-<script type="text/javascript" src="dist\efw.min.js"></script>
-<script type="text/javascript" src="dist\app.min.js"></script>
+<script type="text/javascript" src="dist/efw.min.js"></script>
+<script type="text/javascript" src="dist/app.all.js"></script>
 
 <script>
-var app = new CustomApp();
-app.configs.webGLDebugEnabled = false;
-app.configs.fpsCounterEnabled = true;
 
+var app = null;
 var startApplication = function()
 {
 	var centerHud = document.getElementById("center-hud"); 
 	var bottomLeftHud = document.getElementById("bottomleft-hud");
 	var fpsHud = document.getElementById("fps-hud");
+
+	if (!efw.isBrowserSupported())
+	{
+		centerHud.style.color = "#CC0000";
+		centerHud.innerHTML = 'Your browser does not support WebGL!<br/>' + 
+			'Please, try the latest version of Firefox, Chrome or Safari.';
+		return;
+	}
+
+	app = new CustomApp();
+	app.configs.stopRunningOnError = false;
+	app.configs.webGLDebugEnabled = false;
+	app.configs.fpsCounterEnabled = true;
 	app.setHuds(centerHud, fpsHud);
 		
 	if (!app.init())
@@ -37,22 +48,13 @@ var startApplication = function()
 		bottomLeftHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";
 	}
 }
+
+
+
 </script>
 
-<body onload='startApplication();' 
-	onresize='app.handleCanvasResize();'>
+<body onload='startApplication();' onresize='app.handleCanvasResize();'>
 
-	<!-- <canvas id="webgl-canvas" class="background"></canvas> -->
-	
-	<!--
-	<div style="width:1100px;">
-		<div>Tech: Physically based shading, Async loading (XMLHttpRequest), WebGL compressed textures and much more...</div>
-		<div style="text-align:center;font-weight:bold;">Use mouse left-button and wheel to navigate.
-			<span style="float:right;font-weight:normal;font-size:20px; font-family:'Nothing You Could Do',cursive;">- by Bruno Evangelista</span>
-		</div>
-	</div>
-	-->
-	
 	<div id="fps-hud" class="topmost no-pointer"></div>
 	<div id="center-hud" class="topmost no-pointer">
 		Loading Awesome WebGL Demo!<br/><br/>Please Wait...<br/>
@@ -60,10 +62,6 @@ var startApplication = function()
 	</div>
 	<div id="bottomleft-hud" class="topmost no-pointer"></div>
 	<div id="signature-hud" class="topmost no-pointer">- Code by Bruno Evangelista&nbsp;&nbsp;</div>
-				
-	<!-- <div style="z-index=1000;position:absolute;left:20px;top:10px;font-size:18;color:rgba(1.0,1.0,1.0,1.0);background:rgba(0,0,0,0);">FPS: </div> -->
-	<!-- <div style="z-index:10001;position:absolute; left: 200px; top: 200px; color: #fff;display: none; background: rgba(0,0,0,0.4);">GAEYAGEYAGEYG FPS: </div> -->
-
 </body>
 
 </html>
