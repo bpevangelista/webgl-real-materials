@@ -100,7 +100,7 @@ void main()
 	worldLight1Vec *= 1.0 / light1Dist;
 	
 	//const float innerRange = 200.0;
-	const float outerRange = 1900.0;
+	const float outerRange = 2000.0;
 	//float light0Attn = 1.0 - clamp((light0Dist - innerRange) / outerRange, 0.0, 1.0); 
 	//float light1Attn = 1.0 - clamp((light1Dist - innerRange) / outerRange, 0.0, 1.0);
 	float light0Attn = 1.0 - clamp(light0Dist / outerRange, 0.0, 1.0);
