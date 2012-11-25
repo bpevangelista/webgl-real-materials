@@ -1,34 +1,3 @@
-/**
- * Copyright (C) 2012 Bruno P. Evangelista. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
- * 
- * THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-// Using namespaces
-//vec3 = efw.vec3;
-//mat4 = efw.mat4;
-
-
-/**
- * @constructor 
- */
-/*
-efw.Transform = function()
-{
-	this.orientation = null;
-	this.position = null;
-	this.scale = null;
-}
-*/
-
 
 /**
  * @constructor
@@ -54,6 +23,7 @@ var CustomApp = function()
 	
 	this._uberShaderVertexSource = null;
 	this._uberShaderFragmentSource = null;
+	this.customFresnel0 = null;
 	
 	// Global transformation used for all objects
 	this.matWorld = null;
@@ -72,7 +42,7 @@ var CustomApp = function()
 	this._useMipMapOverlay = true;
 }
 CustomApp.prototype = Object.create( efw.Application.prototype );
-CustomApp.prototype.constructor = (CustomApp||{});
+CustomApp.prototype.constructor = CustomApp;
 
 
 CustomApp.prototype.setHuds = function(userCenterHud, userFpsHud)
@@ -142,14 +112,11 @@ CustomApp.prototype.showStartMessage = function() {
 
 CustomApp.prototype.updateLoadContentProgress = function()
 {
-	//this = this.CustomApp;
-	//window.console.log(this.CustomApp.loader);
-	
 	var progress = this.loader.getProgress();
 	this.centerHud.innerHTML = 'Loading Awesome WebGL Demo!<br/><br/> Loading ' + progress + '%';
 
 	if (progress != 100)
-		setTimeout(this.updateLoadContentProgress.bind(this), 1000);
+		setTimeout(this.updateLoadContentProgress.bind(this), 100);
 }
 
 
@@ -165,7 +132,8 @@ CustomApp.prototype.userLoadContent = function()
 	
 	// Material Lib
 	var materialFilePath = 'assets/sponza-materials';
-	if (this.graphicsDevice.gl.compressedTexImage2D && this._useMaterialTextureFormat == efw.TextureFormats.kDXT1)
+	if (this.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures] && 
+		this._useMaterialTextureFormat == efw.TextureFormats.kDXT1)
 	{
 		window.console.log("Using compressed textures.");
 		materialFilePath = 'assets/sponza-compressed-materials';
@@ -181,19 +149,18 @@ CustomApp.prototype.userLoadContent = function()
 	this.loader.loadFileAsync('assets/_vs_programs.glsl', 'text', function(data) { self._uberShaderVertexSource = data; } );
 	this.loader.loadFileAsync('assets/_fs_programs.glsl', 'text', function(data) { self._uberShaderFragmentSource = data; } );
 	
-	setTimeout( this.updateLoadContentProgress.bind(this), 1000);
+	setTimeout( this.updateLoadContentProgress.bind(this), 200);
 }
 
 
 CustomApp.prototype.setDefaultRenderStates = function()
 {
-	this.graphicsDevice.gl.clearColor(122/255.0, 170/255.0, 255/255.0, 1.0);
-	this.graphicsDevice.gl.clearDepth(1.0);
-	this.graphicsDevice.gl.enable(this.graphicsDevice.gl.DEPTH_TEST);
+	this.graphicsDevice.setClearColor(122/255.0, 170/255.0, 255/255.0, 1.0);
+	this.graphicsDevice.setClearDepth(1.0);
+	this.graphicsDevice.enableState(efw.GraphicsDeviceState.kDepthTest);
+	this.graphicsDevice.enableState(efw.GraphicsDeviceState.kCullFace);
 	
-	this.graphicsDevice.gl.enable(this.graphicsDevice.gl.CULL_FACE);
 	this.graphicsDevice.gl.cullFace(this.graphicsDevice.gl.FRONT);
-	
 	this.graphicsDevice.gl.activeTexture(this.graphicsDevice.gl.TEXTURE0);
 }
 
@@ -247,9 +214,11 @@ CustomApp.prototype.userInitializeContent = function()
 	// Create lights
 	this.lights[0] = new efw.PointLight();
 	this.lights[1] = new efw.PointLight();
-	this.lights[0].init( [700.0, 1400.0, 0.0], [0.6, 0.8, 0.6] );
-	this.lights[1].init( [-700.0, 1400.0, 200.0], [0.6, 0.6, 0.8] );
-
+	//this.lights[0].init( [700.0, 1400.0, 0.0], [0.6, 0.8, 0.6] );
+	//this.lights[1].init( [-700.0, 1400.0, 200.0], [0.6, 0.6, 0.8] );
+	this.lights[0].init( [700.0, 1400.0, 0.0], [0.4, 0.7, 0.4] );
+	this.lights[1].init( [-700.0, 1400.0, 200.0], [0.4, 0.4, 0.9] );
+	
 	// Compile all vertex shaders
 	var vertexShaders = [];
 	vertexShaders[vertexShaders.length] = this.graphicsDevice.compileVS(this._uberShaderVertexSource, '-DVS_SIMPLE');
@@ -277,8 +246,11 @@ CustomApp.prototype.userInitializeContent = function()
 	this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
 	this.graphicsDevice.setActiveShaderUniform("gLight1Color", this.lights[1].color, false);
 
-	this.configs.fpsCounterEnabled = true;
-	
+	//
+	this.customFresnel0 = new Float32Array([0.0, 0.0, 0.1465]);
+	this.graphicsDevice.setActiveShaderUniform("gMaterialFresnel0", this.customFresnel0, false);
+	this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 32);
+
 	// Start
 	this.run();
 }
@@ -306,8 +278,10 @@ CustomApp.prototype.userUpdate = function(elapsedTimeMillis)
 	{
 		var matWVP = mat4.mul(this.matWorld, this.camera.viewProjectionMatrix);
 
-		this.graphicsDevice.setActiveShaderUniform("gMatWVP", new Float32Array(matWVP), false);
-		this.graphicsDevice.setActiveShaderUniform("gWorldEyePosition", new Float32Array(this.camera.position), false);
+		//this.graphicsDevice.setActiveShaderUniform("gMatWVP", new Float32Array(matWVP), false);
+		//this.graphicsDevice.setActiveShaderUniform("gWorldEyePosition", new Float32Array(this.camera.position), false);
+		this.graphicsDevice.setActiveShaderUniform("gMatWVP", matWVP, false);
+		this.graphicsDevice.setActiveShaderUniform("gWorldEyePosition", this.camera.position, false);
 	}
 	
 	// Rotate lights around
@@ -332,8 +306,13 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 	this.fpsHud.innerHTML = 'Update Fps/Ms: ' + this.fpsStats.updateFps + '/' + this.fpsStats.updateTimeMs + 
 	'<br/>Draw Fps/Ms: ' + this.fpsStats.drawFps + '/' + this.fpsStats.drawTimeMs;
 	
-	this.graphicsDevice.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
-	this.graphicsDevice.gl.clear(this.graphicsDevice.gl.COLOR_BUFFER_BIT | this.graphicsDevice.gl.DEPTH_BUFFER_BIT);
+	this.graphicsDevice.setViewport(0, 0, this.viewportWidth, this.viewportHeight);
+	this.graphicsDevice.clear(true, true, false);
+	
+	//this.graphicsDevice.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
+	//this.graphicsDevice.gl.clear(this.graphicsDevice.gl.COLOR_BUFFER_BIT | this.graphicsDevice.gl.COLOR_DEPTH_BIT);
+    //this.graphicsDevice.gl.activeTexture(this.graphicsDevice.gl.TEXTURE0);
+	//this.graphicsDevice.setActiveShaderUniform("gSamplerAlbedo", 0, false);
 
 	for (var key in this.resourceManager.resourceTable.meshes)
 	{
@@ -344,11 +323,8 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 		
 		if (material)
 		{
-        	this.graphicsDevice.setTexture(material.albedoTexture);
-        	this.graphicsDevice.setActiveShaderUniform("gSamplerAlbedo", 0, false);
-			this.graphicsDevice.setActiveShaderUniform("gMaterialFresnel0", material.fresnel0, false);
-			//graphicsDevice.uniform1f(this.selectedProgram.uniforms["gMaterialRoughness"], material.roughness);
-			this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 24, false);
+        	this.graphicsDevice.setTexture(0, material.albedoTexture);
+			//this.graphicsDevice.gl.bindTexture(this.graphicsDevice.gl.TEXTURE_2D, material.albedoTexture);
 		}
 
 		if (this._useMeshCompressionType != 0)
@@ -366,6 +342,7 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 		this.graphicsDevice.setVertexFormat(mesh.vertexFormat);
 		this.graphicsDevice.drawIndexed(mesh.indexCount);
 	}
+	//this.graphicsDevice.gl.flush();
 
 	if (this._isFirstDraw)
 	{
