@@ -9,8 +9,9 @@ var CustomApp = function()
 	efw.Application.call(this);
 	
 	// 
-	this.fpsHud = null;
 	this.centerHud = null;
+	this.fpsHud = null;
+	this.topMenu = null;
 
 	// Loader and resource manager
 	this.loader = new efw.Loader();
@@ -23,6 +24,7 @@ var CustomApp = function()
 	
 	this._uberShaderVertexSource = null;
 	this._uberShaderFragmentSource = null;
+	this.shaderIndex = 0;
 	this.customFresnel0 = null;
 	
 	// Global transformation used for all objects
@@ -45,10 +47,11 @@ CustomApp.prototype = Object.create( efw.Application.prototype );
 CustomApp.prototype.constructor = CustomApp;
 
 
-CustomApp.prototype.setHuds = function(userCenterHud, userFpsHud)
+CustomApp.prototype.setHuds = function(userCenterHud, userFpsHud, topMenu)
 {
 	this.centerHud = userCenterHud;
 	this.fpsHud = userFpsHud;
+	this.topMenu = topMenu;
 }
 
 
@@ -195,6 +198,52 @@ CustomApp.prototype.userOnresize = function()
 }
 
 
+
+CustomApp.prototype.setShader = function(shaderIndex)
+{
+	this.shaderIndex = shaderIndex;
+	this.graphicsDevice.setShaderProgram(this.shaderPrograms[ this.shaderIndex ]);
+
+	// One time updates
+	this.matWorld = mat4.mul( mat4.translate(vec3.create(100.0, 0, 0)), mat4.scale(vec3.create(1.5, 1.0, 1.5)) );
+	this.matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
+	
+	this.graphicsDevice.setActiveShaderUniform("gMatW", new Float32Array(this.matWorld), false);
+	this.graphicsDevice.setActiveShaderUniform("gMatWIT", new Float32Array( mat4.upper3x3(this.matWorldIT) ), false);
+
+	this.camera.update();
+	var matWVP = mat4.mul(this.matWorld, this.camera.viewProjectionMatrix);
+	this.graphicsDevice.setActiveShaderUniform("gMatWVP", matWVP, false);
+	this.graphicsDevice.setActiveShaderUniform("gWorldEyePosition", this.camera.position, false);
+
+
+	// Physically based ones
+	if (this.shaderIndex >= 4)
+	{
+		this.lights[0].init( [700.0, 1400.0, 0.0], [0.4, 0.8, 0.5] );
+		this.lights[1].init( [-700.0, 1400.0, 200.0], [0.4, 0.4, 0.9] );
+
+		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight1Color", this.lights[1].color, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[0].position, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight1WorldPosition", this.lights[1].position, false);
+
+		this.customFresnel0 = new Float32Array([0.1, 0.1, 0.1465]);
+		this.graphicsDevice.setActiveShaderUniform("gMaterialFresnel0", this.customFresnel0, false);
+		this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 18);
+	}
+	else
+	{
+		this.lights[0].init( [0.0, 1400.0, 0.0], [1.0, 1.0, 1.0] );
+		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[0].position, false);
+		
+		this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 48);
+	}
+
+}
+
+
 CustomApp.prototype.userInitializeContent = function()
 {
 	if (this.loader.hasPendingAsyncCalls())
@@ -214,10 +263,6 @@ CustomApp.prototype.userInitializeContent = function()
 	// Create lights
 	this.lights[0] = new efw.PointLight();
 	this.lights[1] = new efw.PointLight();
-	//this.lights[0].init( [700.0, 1400.0, 0.0], [0.6, 0.8, 0.6] );
-	//this.lights[1].init( [-700.0, 1400.0, 200.0], [0.6, 0.6, 0.8] );
-	this.lights[0].init( [700.0, 1400.0, 0.0], [0.4, 0.7, 0.4] );
-	this.lights[1].init( [-700.0, 1400.0, 200.0], [0.4, 0.4, 0.9] );
 	
 	// Compile all vertex shaders
 	var vertexShaders = [];
@@ -229,27 +274,19 @@ CustomApp.prototype.userInitializeContent = function()
 	// Compile all fragment shaders
 	var fragmentShaders = [];
 	fragmentShaders[fragmentShaders.length] = this.graphicsDevice.compilePS(this._uberShaderFragmentSource, '-DFS_SIMPLE');
+	fragmentShaders[fragmentShaders.length] = this.graphicsDevice.compilePS(this._uberShaderFragmentSource, '-DFS_PHYSICALLY_2L');
 	
 	// Link all programs
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[0], fragmentShaders[0]) );
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[1], fragmentShaders[0]) );
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[2], fragmentShaders[0]) );
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[3], fragmentShaders[0]) );
-	this.graphicsDevice.setShaderProgram(this.shaderPrograms[3]);
+	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[0], fragmentShaders[1]) );
+	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[1], fragmentShaders[1]) );
+	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[2], fragmentShaders[1]) );
+	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[3], fragmentShaders[1]) );
 
-	// One time updates
-	this.matWorld = mat4.mul( mat4.translate(vec3.create(100.0, 0, 0)), mat4.scale(vec3.create(1.5, 1.0, 1.5)) );
-	this.matWorldIT = mat4.scale( vec3.create(1/1.5, 1.0, 1/1.5) );
-	
-	this.graphicsDevice.setActiveShaderUniform("gMatW", new Float32Array(this.matWorld), false);
-	this.graphicsDevice.setActiveShaderUniform("gMatWIT", new Float32Array( mat4.upper3x3(this.matWorldIT) ), false);
-	this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
-	this.graphicsDevice.setActiveShaderUniform("gLight1Color", this.lights[1].color, false);
-
-	//
-	this.customFresnel0 = new Float32Array([0.0, 0.0, 0.1465]);
-	this.graphicsDevice.setActiveShaderUniform("gMaterialFresnel0", this.customFresnel0, false);
-	this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 32);
+	this.setShader(7);
 
 	// Start
 	this.run();
@@ -284,18 +321,21 @@ CustomApp.prototype.userUpdate = function(elapsedTimeMillis)
 		this.graphicsDevice.setActiveShaderUniform("gWorldEyePosition", this.camera.position, false);
 	}
 	
-	// Rotate lights around
-	var angle = elapsedTimeMillis * 0.5;
-	var cosAngle = Math.cos(angle);
-	var sinAngle = Math.sin(angle);
-	this.lights[0].position[2] = this.lights[0].position[2] * cosAngle - this.lights[0].position[0] * sinAngle;
-	this.lights[0].position[0] = this.lights[0].position[0] * cosAngle + this.lights[0].position[2] * sinAngle;
-	this.lights[1].position[2] = this.lights[1].position[2] * cosAngle - this.lights[1].position[0] * sinAngle;
-	this.lights[1].position[0] = this.lights[1].position[0] * cosAngle + this.lights[1].position[2] * sinAngle;
-
-	// Update light position	
-	this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[0].position, false);
-	this.graphicsDevice.setActiveShaderUniform("gLight1WorldPosition", this.lights[1].position, false);
+	if (this.shaderIndex >= 4)
+	{
+		// Rotate lights around
+		var angle = elapsedTimeMillis * 0.5;
+		var cosAngle = Math.cos(angle);
+		var sinAngle = Math.sin(angle);
+		this.lights[0].position[2] = this.lights[0].position[2] * cosAngle - this.lights[0].position[0] * sinAngle;
+		this.lights[0].position[0] = this.lights[0].position[0] * cosAngle + this.lights[0].position[2] * sinAngle;
+		this.lights[1].position[2] = this.lights[1].position[2] * cosAngle - this.lights[1].position[0] * sinAngle;
+		this.lights[1].position[0] = this.lights[1].position[0] * cosAngle + this.lights[1].position[2] * sinAngle;
+	
+		// Update light position	
+		this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[0].position, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight1WorldPosition", this.lights[1].position, false);
+	}
 	
 	//startRandomizeLight();
 }
@@ -309,11 +349,6 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 	this.graphicsDevice.setViewport(0, 0, this.viewportWidth, this.viewportHeight);
 	this.graphicsDevice.clear(true, true, false);
 	
-	//this.graphicsDevice.gl.viewport(0, 0, this.viewportWidth, this.viewportHeight);
-	//this.graphicsDevice.gl.clear(this.graphicsDevice.gl.COLOR_BUFFER_BIT | this.graphicsDevice.gl.COLOR_DEPTH_BIT);
-    //this.graphicsDevice.gl.activeTexture(this.graphicsDevice.gl.TEXTURE0);
-	//this.graphicsDevice.setActiveShaderUniform("gSamplerAlbedo", 0, false);
-
 	for (var key in this.resourceManager.resourceTable.meshes)
 	{
 		var mesh = this.resourceManager.resourceTable.meshes[key];
@@ -324,14 +359,10 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 		if (material)
 		{
         	this.graphicsDevice.setTexture(0, material.albedoTexture);
-			//this.graphicsDevice.gl.bindTexture(this.graphicsDevice.gl.TEXTURE_2D, material.albedoTexture);
 		}
 
 		if (this._useMeshCompressionType != 0)
 		{
-			//console.log(mesh.optPositionScale);
-			//console.log(this.selectedProgram.uniforms["gPositionScale"]);
-			
 			this.graphicsDevice.setActiveShaderUniform("gPositionScale", mesh.optPositionScale, false);
 			this.graphicsDevice.setActiveShaderUniform("gPositionBias", mesh.optPositionBias, false);
 			this.graphicsDevice.setActiveShaderUniform("gUvScaleBias", mesh.optUv0ScaleBias, false);
@@ -342,11 +373,11 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 		this.graphicsDevice.setVertexFormat(mesh.vertexFormat);
 		this.graphicsDevice.drawIndexed(mesh.indexCount);
 	}
-	//this.graphicsDevice.gl.flush();
 
 	if (this._isFirstDraw)
 	{
 		this._isFirstDraw = false;
 		this.showStartMessage();
+		this.topMenu.style.display = 'inherit';
 	}
 }
