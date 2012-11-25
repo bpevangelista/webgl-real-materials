@@ -60,9 +60,8 @@ efw.Application = function() {
 	this.viewportWidth = 4;
 	this.viewportHeight = 4;
 	
-	// General
+	// Graphics
 	this.graphicsDevice = new efw.GraphicsDevice();
-	this._fpsStats = new efw.FpsStats();
 	
 	// Input
 	this._mouseRead = new efw.Mouse();
@@ -73,6 +72,10 @@ efw.Application = function() {
 	this._animationFrameRequest = null;
 	this._previousTime = 0;
 	this._elapsedTime = 0;
+	
+	// General
+	this._fpsStats = new efw.FpsStats();
+	this.isInitialized = false;
 }
 
 
@@ -261,7 +264,8 @@ efw.Application.prototype.init = function()
 	this.userLoadContent();
 	this.userInitializeContent();
 	this.initializeInput();
-
+	
+	this.isInitialized = true;
 	return true;
 }
 
