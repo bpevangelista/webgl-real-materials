@@ -23,7 +23,7 @@ efw.Loader = function() {
 	/**
 	 * Maps XMLHttpRequest to the last received progress event
 	 */
-	this._requestsToEventMap = {};	
+	this._progress = {};	
 }
 
 
@@ -37,34 +37,31 @@ efw.Loader.prototype.clear = function()
 {
 	this._asyncLoading = 0;
 	this._requests = [];
-	this._requestsToEventMap = {};
+	this._progress = {};
 }
 
 
 efw.Loader.prototype.getProgress = function()
 {
 	// If there's no requests we are 100% done
-	if (this._requests.length == 0)
+	if (this._progress.length == 0)
 	{
 		return 100;
 	}
 	
-	var count = 0;
-	var totalProgress = 0;
-	
-	for (var i=0; i<this._requests.length; i++)
-	{
-		var lastEvent = this._requestsToEventMap[ this._requests[i] ];
-		if (lastEvent != null && lastEvent.lengthComputable)
-		{
-			totalProgress += (lastEvent.loaded/lastEvent.total);			
-			count++;
-		}
-	}
+	var sumPosition = 0;
+	var sumSize = 0;
 
-	if (count > 0)
+	for (var key in this._progress)
 	{
-		totalProgress = (Math.floor(totalProgress/count) * 100);
+		sumPosition += this._progress[key].loaded; 
+		sumSize += this._progress[key].total;			
+	}
+	
+	var totalProgress = 0;
+	if (sumSize > 0)
+	{
+		totalProgress = Math.floor(100 * sumPosition/sumSize);
 		totalProgress = Math.min( Math.max(totalProgress, 0), 100);
 	}
 	
@@ -91,15 +88,22 @@ efw.Loader.prototype.loadFileAsync = function(fullFilePath, fileType, functionPt
 	};
 	xhr.onprogress = function(e) {
 		//window.console.log(e);
-		self._requestsToEventMap[e.currentTarget] = e;
+		if (e.lengthComputable)
+		{
+			self._progress[e.target.fullFilePath] = {loaded:e.loaded, total:e.total};
+		}
 	}
 	xhr.onerror = xhr.onabort = function(e) { 
 		self._asyncLoading--;
 	};
 
+	// Keep track of it using the "hopefully" unique file path
+	xhr.fullFilePath = fullFilePath;
+	
 	xhr.send();
 	this._requests.push( xhr );
-		
+	this._progress[fullFilePath] = {loaded:0, total:0};
+	
 	return xhr;
 }
 
