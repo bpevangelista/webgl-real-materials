@@ -4,6 +4,13 @@ efw.GraphicsDeviceExtensions = {
 };
 
 
+efw.GraphicsDeviceState = {
+	kBlend			:1,
+	kCullFace		:2,
+	kDepthTest		:3
+};
+
+
 /**
  * @constructor 
  */
@@ -68,6 +75,17 @@ efw.GraphicsDevice = function()
 	}
 	
 	
+	this.clear = function(clearColor, clearDepth, clearStencil)
+	{
+		var clearFlags = 0;
+		clearFlags |= ((clearColor)? this.gl.COLOR_BUFFER_BIT : 0);
+		clearFlags |= ((clearDepth)? this.gl.DEPTH_BUFFER_BIT : 0);
+		clearFlags |= ((clearStencil)? this.gl.STENCIL_BUFFER_BIT : 0);
+		
+		this.gl.clear( clearFlags );
+	}
+	
+	
 	this.compileVS = function(shaderSource, optDefines)
 	{
 		return this._compileShaderWithDefines(shaderSource, this.gl.VERTEX_SHADER, optDefines);
@@ -127,12 +145,37 @@ efw.GraphicsDevice = function()
 	}
 	
 	
+	
+	this.hasError = function()
+	{
+		return (this.gl.getError() != this.gl.NO_ERROR);
+	}
+	
+	
 	this.setActiveShaderUniform = function(uniformName, data, transposeMatrix)
 	{
 		this.setShaderUniform(this.activeShaderProgram, uniformName, data, transposeMatrix);
 	}
 
 
+	this.setClearColor = function(red, green, blue, alpha)
+	{
+		this.gl.clearColor(red, green, blue, alpha);
+	}
+	
+	
+	this.setClearDepth = function(depth)
+	{
+		this.gl.clearDepth(depth);
+	}
+	
+	
+	this.setClearStencil = function(stencil)
+	{
+		this.gl.clearStencil(stencil);	
+	}
+	
+	
 	this.setDebugEnable = function(enabled)
 	{
 		this.gl = this.glRelease;
@@ -252,9 +295,10 @@ efw.GraphicsDevice = function()
 		}
 	}
 	
-	
-	this.setTexture = function(textureBuffer)
+		
+	this.setTexture = function(unitNumber, textureBuffer)
 	{
+		this.gl.activeTexture(this.gl.TEXTURE0 + unitNumber);
 		this.gl.bindTexture(this.gl.TEXTURE_2D, textureBuffer);
 	}
 	
@@ -323,6 +367,12 @@ efw.GraphicsDevice = function()
 	}
 	
 
+	this.setViewport = function(left, top, right, bottom)
+	{
+		this.gl.viewport(left, top, right, bottom);		
+	}
+
+
 	this.uploadIndexBufferData = function(buffer, indexData)
 	{
    		this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, buffer);
@@ -375,6 +425,44 @@ efw.GraphicsDevice = function()
 	{
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
 		this.gl.bufferData(this.gl.ARRAY_BUFFER, vertexData, this.gl.STATIC_DRAW);
+	}
+	
+		
+	this.enableState = function(state)
+	{
+		switch(state)
+		{
+			case efw.GraphicsDeviceState.kBlend:
+				this.gl.enable(this.gl.BLEND);
+				break;
+				
+			case efw.GraphicsDeviceState.kCullFace:
+				this.gl.enable(this.gl.CULL_FACE);
+				break;
+
+			case efw.GraphicsDeviceState.kDepthTest:
+				this.gl.enable(this.gl.DEPTH_TEST);
+				break;
+		}
+	}
+	
+
+	this.disableState = function(state)
+	{
+		switch(state)
+		{
+			case efw.GraphicsDeviceState.kBlend:
+				this.gl.disable(this.gl.BLEND);
+				break;
+				
+			case efw.GraphicsDeviceState.kCullFace:
+				this.gl.disable(this.gl.CULL_FACE);
+				break;
+
+			case efw.GraphicsDeviceState.kDepthTest:
+				this.gl.disable(this.gl.DEPTH_TEST);
+				break;
+		}
 	}
 	
 	
