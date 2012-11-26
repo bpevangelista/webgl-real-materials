@@ -6,7 +6,7 @@
 <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
-<script type="text/javascript" src="dist/efw.all.js"></script>
+<script type="text/javascript" src="dist/efw.min.js"></script>
 <script type="text/javascript" src="dist/app.all.js"></script>
 
 <script>
@@ -52,27 +52,16 @@ var startApplication = function()
 	if (!app.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures])
 	{
 		bottomLeftHud.style.color = "yellow";
-		bottomLeftHud.innerHTML = "Your browser supports WebGL but doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slow...";
+		bottomLeftHud.innerHTML = "Your browser doesn't support compressed textures!<br/>We will fallback to non-compressed textures but that will be slower...";
+		setTimeout(function() { bottomLeftHud.style.display='none'; }, 5000);
 	}
 }
 
-var toggleMenu = function()
+var toggleMenu = function(button)
 {
 	isMenuVisible = !isMenuVisible;
-	bottomMenu.style.display = ((isMenuVisible)? 'inherit' : 'none'); 
-}
-
-var setShader = function(shaderIndex)
-{
-	if (app.isInitialized)
-	{
-		app.setShader(shaderIndex);
-	}
-}
-
-var setMeshes = function(meshIndex)
-{
-	
+	bottomMenu.style.display = ((isMenuVisible)? 'inherit' : 'none');
+	button.value = ((isMenuVisible)? '-' : '+');
 }
 </script>
 
@@ -91,26 +80,30 @@ var setMeshes = function(meshIndex)
 	
 	<div id="menu-top" class="topmost menu">
 		Options 
-		<input type="button" value="+" onclick="toggleMenu();"/>
+		<input type="button" value="+" onclick="toggleMenu(this);"/>
 	</div>
 	
 	<div id="menu-bottom">
 		<div class="topmost menu">
 			Lighting:<br/>
-		    <input type="radio" name="lightingGroup" onclick="setShader(3);"/>1 Light: Simple<br/>
-		    <input type="radio" name="lightingGroup" checked="checked" onclick="setShader(7);"/>2 Lights: Physically Based
+		    <input type="radio" name="lightingGroup" onclick="app.setShader(null, 0);"/>1 Light: Simple<br/>
+		    <input type="radio" name="lightingGroup" checked="checked" onclick="app.setShader(null, 1);"/>2 Lights: Physically Based
 		</div>
 		
 		<div class="topmost menu">
 			Meshes:<br/>
-		    <input type="radio" name="meshGroup" checked="checked"/ onclick=""> Compressed (4.02 MB)<br/>
-		    <input type="radio" name="meshGroup" /> Uncompressed (7.15 MB)
+		    <input id="option-c3.mesh" type="radio" name="meshGroup" onclick="app.meshPackage=MeshPackages.kCompressed3;app.setShader(3, null);"/>
+		    <label id="label-c3.mesh" for="option-c3.mesh">Compressed (3.96 MB)</label>
+		    <input id="option-uc.mesh" type="radio" name="meshGroup" onclick="app.meshPackage=MeshPackages.kUncompressed;app.setShader(0, null);"/>
+		    <label id="label-uc.mesh" for="option-uc.mesh">Uncompressed (7.13 MB)</label>
 		</div>
 		
 		<div class="topmost menu">
 			Materials:<br/>
-		    <input type="radio" name="materialGroup" checked="checked"/> Compressed (3.75 MB)<br/>
-		    <input type="radio" name="materialGroup"/> Uncompressed (7.13 MB)
+		    <input id="option-c5.material" type="radio" name="materialGroup" onclick="app.materialPackage=MaterialPackages.kCompressedDXT1;"/>
+		    <label id="label-c5.material" for="option-c5.material">Compressed (3.75 MB)</label>
+		    <input id="option-uc.material" type="radio" name="materialGroup" onclick="app.materialPackage=MaterialPackages.kUncompressed;"/>
+		    <label id="label-uc.material" for="option-uc.material">Uncompressed (17.9 MB)</label>
 		</div>
 		
 		<div class="topmost menu">
@@ -119,14 +112,13 @@ var setMeshes = function(meshIndex)
 		    &nbsp;&nbsp;26 Materials<br/><br/>
 		    
 		    Tech:<br/>
-		    &nbsp;&nbsp;Physically Based Shading with Microfacet BRDF<br/>
-		    &nbsp;&nbsp;Compressed Meshes<br/>
-		    &nbsp;&nbsp;DXT Compressed Textures<br/>
-		    &nbsp;&nbsp;Async Package Loading<br/>
+		    &nbsp;&nbsp;- Physically Based Shading<br/>
+		    &nbsp;&nbsp;&nbsp;&nbsp;- Microfacet BRDF<br/>
+		    &nbsp;&nbsp;- Compressed Meshes<br/>
+		    &nbsp;&nbsp;- DXT Compressed Textures<br/>
+		    &nbsp;&nbsp;- Async Package Loading<br/>
 		</div>
 	</div>
-	
-
 </body>
 
 </html>
