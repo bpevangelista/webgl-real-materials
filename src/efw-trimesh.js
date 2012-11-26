@@ -8,13 +8,13 @@ efw.TriMeshVertexFormat = function(vformat)
 	this.attribs = {};
 
 	var positionIndex = 		(vformat >> 0) & 0x1;
-	var tangentFrameIndex = 	(vformat >> 1) & 0x3;
-	var color0Index = 			(vformat >> 3) & 0x1;
-	var color1Index = 			(vformat >> 4) & 0x1;
-	var uv0Index = 				(vformat >> 5) & 0x1;
-	var uv1Index = 				(vformat >> 6) & 0x1;
-	var uv2Index = 				(vformat >> 7) & 0x1;
-	var uv3Index =	 			(vformat >> 8) & 0x1;
+	var tangentFrameIndex = 	(vformat >> 1) & 0x7;
+	var color0Index = 			(vformat >> 4) & 0x1;
+	var color1Index = 			(vformat >> 5) & 0x1;
+	var uv0Index = 				(vformat >> 6) & 0x3;
+	var uv1Index = 				(vformat >> 8) & 0x3;
+	var uv2Index = 				(vformat >> 10) & 0x3;
+	var uv3Index =	 			(vformat >> 12) & 0x3;
 	
 	var i = 0;
 	var extras = [];
@@ -59,7 +59,7 @@ efw.TriMeshVertexFormat = function(vformat)
 
 efw.TriMeshVertexFormatsSize = 
 {
-	0x1401/*gl.UNSIGNED_SHORT*/ : 1,
+	0x1401/*gl.UNSIGNED_BYTE*/ : 1,
 	0x1403/*gl.UNSIGNED_SHORT*/ : 2,
 	0x1406/*gl.FLOAT*/ : 4
 };
@@ -70,6 +70,7 @@ efw.TriMeshVertexPositionFormats = [
 ];
 efw.TriMeshVertexTangentFrameFormats = [
 	null,
+	{key:"aNormal", value:{type:0x1406/*gl.FLOAT*/,offset:0,count:3,normalized:false}},
 	{key:"aNormal", value:{type:0x1403/*gl.UNSIGNED_SHORT*/,offset:0,count:4,normalized:true}},
 	{key:"aNormal", value:{type:0x1401/*gl.UNSIGNED_BYTE*/ ,offset:0,count:4,normalized:true}},
 	{key:"aNormal", value:{type:0x1403/*gl.UNSIGNED_SHORT*/,offset:0,count:2,normalized:true}}
@@ -80,6 +81,7 @@ efw.TriMeshVertexColorFormats = [
 ];
 efw.TriMeshVertexUvFormats = [
 	null,
+	{key:"aUv", value:{type:0x1406/*gl.FLOAT*/,offset:0,count:2,normalized:false}},
 	{key:"aUv", value:{type:0x1403/*gl.UNSIGNED_SHORT*/,offset:0,count:2,normalized:true}}
 ];
 
@@ -122,8 +124,8 @@ efw.TriMesh.prototype.init = function(materialGuid, vertexBuffer, vertexFormat, 
 
 efw.TriMesh.prototype.initOpt = function(positionScaleArray, positionBiasArray, uvScaleBiasArray)
 {
-	this.optPositionScale = new Float32Array(positionScaleArray);
-	this.optPositionBias = new Float32Array(positionBiasArray);
-	this.optUv0ScaleBias = new Float32Array(uvScaleBiasArray);
+	this.optPositionScale = (positionScaleArray != null)? new Float32Array(positionScaleArray) : null;
+	this.optPositionBias = (positionBiasArray != null)? new Float32Array(positionBiasArray) : null;
+	this.optUv0ScaleBias = (uvScaleBiasArray != null)? new Float32Array(uvScaleBiasArray) : null;
 
 }
