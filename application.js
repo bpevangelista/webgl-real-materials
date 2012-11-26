@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2012 Bruno P. Evangelista. All rights reserved.
+ * 
+ */
+var MeshPackages = {
+	kCompressed3 : {loaded:false, compressed:true, name:'c3.', filepath:'assets/c3.sponza-meshes'},	// Compressed Quantized + SphereMap normals
+	//kCompressed2 : {loaded:false, compressed:true, name:'c2.', filepath:'assets/c2.sponza-meshes'},	// Compressed Quantized + Azimuthal normals
+	//kCompressed1 : {loaded:false, compressed:true, name:'c1.', filepath:'assets/c1.sponza-meshes'},	// Compressed Quantized 16b attributes
+	kUncompressed : {loaded:false, compressed:false, name:'uc.', filepath:'assets/uc.sponza-meshes'}	// Uncompressed
+};
+
+var MaterialPackages = {
+	kCompressedDXT1 : {loaded:false, compressed:true, name:'c5.', filepath:'assets/c5.sponza-materials'},	// DXT1 compression
+	kUncompressed : {loaded:false, compressed:false, name:'uc.', filepath:'assets/uc.sponza-materials'}	// Uncompressed
+};
 
 /**
  * @constructor
@@ -39,9 +54,11 @@ var CustomApp = function()
 
 	// General
 	this._isFirstDraw = true;
-	this._useMeshCompressionType = 3; // 0 = None, 1 = 16b attributes, 2 = Azimuthal normals, 3 = SphereMap normals
-	this._useMaterialTextureFormat = efw.TextureFormats.kDXT1; // 0 = None, 5 = DXT1
-	this._useMipMapOverlay = true;
+	this.meshPackage = MeshPackages.kCompressed3;
+	this.materialPackage = MaterialPackages.kCompressedDXT1;
+	this.restoreQueue = [];
+	
+	this._useMipMapOverlay = false;
 }
 CustomApp.prototype = Object.create( efw.Application.prototype );
 CustomApp.prototype.constructor = CustomApp;
@@ -111,10 +128,23 @@ CustomApp.prototype.showStartMessage = function() {
 	
 	setTimeout(this.hideStartMessage.bind(this), 5000);
 }
-
-
-CustomApp.prototype.updateLoadContentProgress = function()
-{
+CustomApp.prototype.showOptionMenu = function() {
+	this.topMenu.style.display = 'inherit';
+	
+	var currentMesh = document.getElementById('option-' + this.meshPackage.name + 'mesh');
+	var currentMaterial = document.getElementById('option-' + this.materialPackage.name + 'material');
+	currentMesh.checked = true;
+	currentMaterial.checked = true;
+	
+	if (!this.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures])
+	{
+		var htmlItem = document.getElementById('option-c5.material');
+		htmlItem.disabled = true;
+		htmlItem = document.getElementById('label-c5.material');
+		htmlItem.style.textDecoration = 'line-through';
+	}
+}
+CustomApp.prototype.updateLoadContentProgress = function() {
 	var progress = this.loader.getProgress();
 	this.centerHud.innerHTML = 'Loading Awesome WebGL Demo!<br/><br/> Loading ' + progress + '%';
 
@@ -125,34 +155,99 @@ CustomApp.prototype.updateLoadContentProgress = function()
 
 CustomApp.prototype.userLoadContent = function()
 {
-	// Model
-	var meshFilePath = 'assets/sponza-meshes';
-	if (this._useMeshCompressionType != 0)
+	// Change material package if necessary
+	if (this.materialPackage.compressed && !this.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures])
 	{
-		window.console.log("Using compressed meshes.");
-		meshFilePath = 'assets/sponza-compressed' + this._useMeshCompressionType + '-meshes';
-	}
-	
-	// Material Lib
-	var materialFilePath = 'assets/sponza-materials';
-	if (this.graphicsDevice.extensions[efw.GraphicsDeviceExtensions.kCompressedTextures] && 
-		this._useMaterialTextureFormat == efw.TextureFormats.kDXT1)
-	{
-		window.console.log("Using compressed textures.");
-		materialFilePath = 'assets/sponza-compressed-materials';
+		// Stop loading all compressed materials
+		for (var key in MaterialPackages)
+		{
+			var material = MaterialPackages[key];
+			if (material.compressed)
+				material.loaded = true;
+		}
+		this.materialPackage = MaterialPackages.kUncompressed;
 	}
 
+	if (this.meshPackage.compressed)
+		window.console.log("Using compressed meshes.");
+	if (this.materialPackage.compressed)
+		window.console.log("Using compressed textures.");
+
 	// Load
-	var package0 = this.loader.loadPackageAsync(meshFilePath + '.evd', meshFilePath + '.evb');
-	var package1 = this.loader.loadPackageAsync(materialFilePath + '.evd', materialFilePath + '.evb');
+	var package0 = this.loader.loadPackageAsync(this.meshPackage.filepath + '.evd', this.meshPackage.filepath + '.evb');
+	var package1 = this.loader.loadPackageAsync(this.materialPackage.filepath + '.evd', this.materialPackage.filepath + '.evb');
 	this.resourceManager.addPackage(package0);
 	this.resourceManager.addPackage(package1);
+	
+	// Mark those files as loaded
+	this.meshPackage.loaded = true;
+	this.materialPackage.loaded = true;
 	
 	var self = this;
 	this.loader.loadFileAsync('assets/_vs_programs.glsl', 'text', function(data) { self._uberShaderVertexSource = data; } );
 	this.loader.loadFileAsync('assets/_fs_programs.glsl', 'text', function(data) { self._uberShaderFragmentSource = data; } );
 	
 	setTimeout( this.updateLoadContentProgress.bind(this), 200);
+}
+CustomApp.prototype.userLoadContentStep2 = function()
+{
+	// Load remaining mesh packages
+	for (var key in MeshPackages)
+	{
+		var item = MeshPackages[key];
+		if (!item.loaded)
+		{
+			var package0 = this.loader.loadPackageAsync(item.filepath + '.evd', item.filepath + '.evb');
+			this.resourceManager.addPackage(package0);
+			item.loaded = true;
+			
+			var label = document.getElementById('label-' + item.name + 'mesh');
+			var option = document.getElementById('option-' + item.name + 'mesh');
+			this.restoreQueue.push( {label:label, option:option, innerHTML:label.innerHTML} );
+			label.innerHTML = 'Loading <img src="loading.gif" width="16" height="16" alt="loading-icon"/>';
+			option.disabled = true;
+		}
+	}
+	
+	// Load remaining material packages
+	for (var key in MaterialPackages)
+	{
+		var item = MaterialPackages[key];
+		if (!item.loaded)
+		{
+			var package0 = this.loader.loadPackageAsync(item.filepath + '.evd', item.filepath + '.evb');
+			this.resourceManager.addPackage(package0);
+			item.loaded = true;				
+			
+			var label = document.getElementById('label-' + item.name + 'material');
+			var option = document.getElementById('option-' + item.name + 'material');
+			this.restoreQueue.push( {label:label, option:option, innerHTML:label.innerHTML} );
+			label.innerHTML = 'Loading <img src="loading.gif" width="16" height="16" alt="loading-icon"/>';
+			option.disabled = true;
+		}
+	}
+	setTimeout(this.initializeAsyncPackages.bind(this), 2000);
+}
+
+
+CustomApp.prototype.initializeAsyncPackages = function()
+{
+	if (this.loader.hasPendingAsyncCalls())
+	{
+		setTimeout(this.initializeAsyncPackages.bind(this), 2000);
+		return;
+	}
+	
+	this.loader.clear();
+	this.resourceManager.initializeAllQueuedPackages();
+	
+	//
+	for (var i=0; i<this.restoreQueue.length; ++i)
+	{
+		this.restoreQueue[i].label.innerHTML = this.restoreQueue[i].innerHTML;
+		this.restoreQueue[i].option.disabled = false; 
+	}
+	this.restoreQueue = null;
 }
 
 
@@ -167,30 +262,30 @@ CustomApp.prototype.setDefaultRenderStates = function()
 	this.graphicsDevice.gl.activeTexture(this.graphicsDevice.gl.TEXTURE0);
 }
 
-
 /*
-function lightFadeIn()
+CustomApp.prototype.startRandomizeLight = function()
 {
-
-}
-function startRandomizeLight()
-{
-	var nextTime = 100 + Math.random() * 0.5 * 1000;
+	//var nextTime = 100 + Math.random() * 200;
+	var nextTime = 1.0/15.0 * 1000;
 	
-	var intensityDelta = (Math.random() - 0.5) * 0.1;
-	var newLight0Color = gLight0Color;
+	var intensityDelta = (Math.random() - 0.5) * 0.005;
+	var newLight0Color = this.lights[0].color;
 	newLight0Color[0] = (newLight0Color[0] + intensityDelta);
 	newLight0Color[1] = (newLight0Color[1] + intensityDelta);
 	newLight0Color[2] = (newLight0Color[2] + intensityDelta);
-	newLight0Color[0] = Math.max(Math.min(newLight0Color[0], 1.0), 0.0);
-	newLight0Color[1] = Math.max(Math.min(newLight0Color[1], 1.0), 0.0);
-	newLight0Color[2] = Math.max(Math.min(newLight0Color[2], 1.0), 0.0);
 	
-	//gLight0Color = newLight0Color;
-	setTimeout(function() { gLight0Color = newLight0Color; startRandomizeLight(); }, nextTime);
+	var cancel = (newLight0Color[0] < 0.0 || newLight0Color[0] > 1.0);
+	cancel |= (newLight0Color[1] < 0.0 || newLight0Color[1] > 1.0);
+	cancel |= (newLight0Color[2] < 0.0 || newLight0Color[2] > 1.0);
+	if (!cancel)
+	{
+		this.lights[0].color = newLight0Color;
+		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
+	}
+	
+	setTimeout(this.startRandomizeLight.bind(this), nextTime);
 }
 */
-
 
 CustomApp.prototype.userOnresize = function()
 {
@@ -198,10 +293,14 @@ CustomApp.prototype.userOnresize = function()
 }
 
 
-
-CustomApp.prototype.setShader = function(shaderIndex)
+CustomApp.prototype.setShader = function(vertexIndex, fragmentIndex)
 {
-	this.shaderIndex = shaderIndex;
+	if (vertexIndex == null)
+		vertexIndex = this.shaderIndex % 4;
+	if (fragmentIndex == null)
+		fragmentIndex = Math.floor(this.shaderIndex / 4);
+	
+	this.shaderIndex = fragmentIndex * 4 + vertexIndex;
 	this.graphicsDevice.setShaderProgram(this.shaderPrograms[ this.shaderIndex ]);
 
 	// One time updates
@@ -220,8 +319,6 @@ CustomApp.prototype.setShader = function(shaderIndex)
 	// Physically based ones
 	if (this.shaderIndex >= 4)
 	{
-		this.lights[0].init( [700.0, 1400.0, 0.0], [0.4, 0.8, 0.5] );
-		this.lights[1].init( [-700.0, 1400.0, 200.0], [0.4, 0.4, 0.9] );
 
 		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
 		this.graphicsDevice.setActiveShaderUniform("gLight1Color", this.lights[1].color, false);
@@ -234,9 +331,8 @@ CustomApp.prototype.setShader = function(shaderIndex)
 	}
 	else
 	{
-		this.lights[0].init( [0.0, 1400.0, 0.0], [1.0, 1.0, 1.0] );
-		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[0].color, false);
-		this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[0].position, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight0Color", this.lights[2].color, false);
+		this.graphicsDevice.setActiveShaderUniform("gLight0WorldPosition", this.lights[2].position, false);
 		
 		this.graphicsDevice.setActiveShaderUniform("gMaterialRoughness", 48);
 	}
@@ -254,6 +350,7 @@ CustomApp.prototype.userInitializeContent = function()
 	
 	this.setDefaultRenderStates();
 	
+	this.loader.clear();
 	this.resourceManager.initializeAllQueuedPackages();
 	
 	// Create camera
@@ -263,7 +360,12 @@ CustomApp.prototype.userInitializeContent = function()
 	// Create lights
 	this.lights[0] = new efw.PointLight();
 	this.lights[1] = new efw.PointLight();
+	this.lights[2] = new efw.PointLight();
 	
+	this.lights[0].init( [700.0, 1400.0, 0.0], [0.4, 0.8, 0.5] );
+	this.lights[1].init( [-700.0, 1400.0, 200.0], [0.4, 0.4, 0.9] );
+	this.lights[2].init( [0.0, 1400.0, 0.0], [1.0, 1.0, 1.0] );
+
 	// Compile all vertex shaders
 	var vertexShaders = [];
 	vertexShaders[vertexShaders.length] = this.graphicsDevice.compileVS(this._uberShaderVertexSource, '-DVS_SIMPLE');
@@ -286,7 +388,7 @@ CustomApp.prototype.userInitializeContent = function()
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[2], fragmentShaders[1]) );
 	this.shaderPrograms.push( this.graphicsDevice.createShaderProgram(vertexShaders[3], fragmentShaders[1]) );
 
-	this.setShader(7);
+	this.setShader(3, 1);
 
 	// Start
 	this.run();
@@ -337,7 +439,7 @@ CustomApp.prototype.userUpdate = function(elapsedTimeMillis)
 		this.graphicsDevice.setActiveShaderUniform("gLight1WorldPosition", this.lights[1].position, false);
 	}
 	
-	//startRandomizeLight();
+	//this.startRandomizeLight();
 }
 
 
@@ -351,8 +453,13 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
 	
 	for (var key in this.resourceManager.resourceTable.meshes)
 	{
+		// Skip meshes that are not from the current used package
+		if (key.indexOf(this.meshPackage.name) != 0)
+			continue;
+			
 		var mesh = this.resourceManager.resourceTable.meshes[key];
-		var material = this.resourceManager.resourceTable.materials[mesh.materialGuid];
+		// Grab materials from the current selected material package
+		var material = this.resourceManager.resourceTable.materials[this.materialPackage.name + mesh.materialGuid];
 		//console.log(mesh);
 		//console.log(material);
 		
@@ -361,23 +468,30 @@ CustomApp.prototype.userDraw = function(elapsedTimeMillis)
         	this.graphicsDevice.setTexture(0, material.albedoTexture);
 		}
 
-		if (this._useMeshCompressionType != 0)
+		if (typeof mesh.optPositionScale != 'undefined' && mesh.optPositionScale != null)
 		{
 			this.graphicsDevice.setActiveShaderUniform("gPositionScale", mesh.optPositionScale, false);
 			this.graphicsDevice.setActiveShaderUniform("gPositionBias", mesh.optPositionBias, false);
+		}
+
+		if (typeof mesh.optUv0ScaleBias != 'undefined' && mesh.optUv0ScaleBias != null)
+		{
 			this.graphicsDevice.setActiveShaderUniform("gUvScaleBias", mesh.optUv0ScaleBias, false);
 		}
-		
+					
 		this.graphicsDevice.setIndexBuffer(mesh.indexBuffer);
 		this.graphicsDevice.setVertexBuffer(mesh.vertexBuffer);
 		this.graphicsDevice.setVertexFormat(mesh.vertexFormat);
 		this.graphicsDevice.drawIndexed(mesh.indexCount);
 	}
-
+	
 	if (this._isFirstDraw)
 	{
+		// Load all other available packages
+		this.userLoadContentStep2();
+		
 		this._isFirstDraw = false;
 		this.showStartMessage();
-		this.topMenu.style.display = 'inherit';
+		this.showOptionMenu();
 	}
 }
